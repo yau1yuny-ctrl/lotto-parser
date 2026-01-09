@@ -1,6 +1,8 @@
 import { chromium } from 'playwright';
 
+// Version 2.0 - Forced update to fix encoding issues
 export async function scrapeHonduras() {
+    console.log('Starting Honduras scraper...');
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     try {
@@ -8,7 +10,10 @@ export async function scrapeHonduras() {
 
         await page.evaluate(() => {
             const modal = document.querySelector('.pum-close, .close-modal');
-            if (modal) modal.click();
+            if (modal) {
+                console.log('Closing popup');
+                modal.click();
+            }
         });
 
         const results = await page.evaluate(() => {
@@ -26,7 +31,7 @@ export async function scrapeHonduras() {
                 const container = document.querySelector(selector);
                 if (container) {
                     const numbers = Array.from(container.querySelectorAll('.esferas span'))
-                        .map(s => s.innerText.trim());
+                        .map(s => { return s.innerText.trim(); });
                     if (numbers.length > 0) {
                         games[game] = numbers;
                     }
@@ -38,7 +43,7 @@ export async function scrapeHonduras() {
 
         return results;
     } catch (error) {
-        console.error('Error scraping Honduras:', error);
+        console.error('Error in Honduras scraper:', error);
         return null;
     } finally {
         await browser.close();
