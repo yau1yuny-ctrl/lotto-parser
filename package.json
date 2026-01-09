@@ -1,0 +1,30 @@
+{
+  "name": "lotto-parser",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test-nica": "node -e \"import { scrapeSuerteNica } from './scrapers/nicaragua.js'; scrapeSuerteNica().then(console.log)\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yau1yuny-ctrl/lotto-parser.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/yau1yuny-ctrl/lotto-parser/issues"
+  },
+  "homepage": "https://github.com/yau1yuny-ctrl/lotto-parser#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.90.1",
+    "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
+    "luxon": "^3.7.2",
+    "node-cron": "^4.2.1",
+    "playwright": "^1.57.0"
+  }
+}
