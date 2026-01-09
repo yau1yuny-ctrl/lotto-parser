@@ -6,13 +6,12 @@ export async function scrapeSuerteNica() {
     try {
         await page.goto('https://suertenica.com/', { waitUntil: 'networkidle' });
 
-        // Extract results for Nica (Diaria)
         const results = await page.evaluate(() => {
             const sections = Array.from(document.querySelectorAll('.resultados-container, .shortcode-container'));
             return sections.map(section => {
                 const title = section.querySelector('h2.titulosorteo')?.innerText.trim();
                 const draws = Array.from(section.querySelectorAll('.resultado')).map(res => {
-                    const drawText = res.querySelector('p')?.innerText.trim(); // e.g. "Sorteo 12295 - 3:00 PM"
+                    const drawText = res.querySelector('p')?.innerText.trim();
                     const numbers = Array.from(res.querySelectorAll('.bolilla')).map(b => b.innerText.trim());
                     return { drawText, numbers };
                 });

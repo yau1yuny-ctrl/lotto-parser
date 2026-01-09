@@ -10,8 +10,6 @@ export async function scrapePanama() {
 
         $('.panel.panel-primary').each((i, el) => {
             const header = $(el).find('.panel-heading h2').text().trim();
-            // Header usually contains name and date: "Sorteo Miercolito Miércoles 7 de Enero de 2026"
-
             const table = $(el).find('.plr-md table');
             const data = {};
             table.find('tr').each((j, tr) => {

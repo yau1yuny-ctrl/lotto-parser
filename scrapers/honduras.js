@@ -6,7 +6,6 @@ export async function scrapeHonduras() {
     try {
         await page.goto('https://loto.hn/', { waitUntil: 'networkidle' });
 
-        // Handle popup if present (often happens on Divi sites)
         await page.evaluate(() => {
             const modal = document.querySelector('.pum-close, .close-modal');
             if (modal) modal.click();
@@ -16,7 +15,6 @@ export async function scrapeHonduras() {
             const games = {};
             const dateInfo = document.querySelector('.et_pb_text_1 .et_pb_text_inner')?.innerText.trim();
 
-            // Selector mapping based on research
             const mapping = {
                 'DIARIA': '.et_pb_column_1_3.et_pb_column_3',
                 'PEGA3': '.et_pb_column_1_4.et_pb_column_5',

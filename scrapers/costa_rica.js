@@ -8,7 +8,6 @@ export async function scrapeCostaRica() {
 
         const results = await page.evaluate(() => {
             const data = [];
-            // JPS results are usually in tables or divs with specific IDs
             const sections = document.querySelectorAll('.view-resultados-individuales .views-row');
             sections.forEach(row => {
                 const name = row.querySelector('.views-field-title')?.innerText.trim();
