@@ -28,21 +28,21 @@ export async function scrapeHonduras() {
                 const container = document.querySelector(selector);
                 if (container) {
                     const numbers = Array.from(container.querySelectorAll('.esferas span'))
-                        .map(s =\u003e s.innerText.trim());
-                    if (numbers.length \u003e 0) {
+                        .map(s => s.innerText.trim());
+                    if (numbers.length > 0) {
                         games[game] = numbers;
-    }
+                    }
                 }
             }
 
-return { date: dateInfo, games };
+            return { date: dateInfo, games };
         });
 
-return results;
+        return results;
     } catch (error) {
-    console.error('Error scraping Honduras:', error);
-    return null;
-} finally {
-    await browser.close();
-}
+        console.error('Error scraping Honduras:', error);
+        return null;
+    } finally {
+        await browser.close();
+    }
 }
