@@ -7,11 +7,11 @@ export async function scrapeDominicanRepublic() {
         const $ = cheerio.load(response.data);
 
         const results = [];
-        $('.draw-result').each((i, el) => {
+        $('.draw-result').each(function (i, el) {
             const name = $(el).find('.draw-name').text().trim();
-            const numbers = $(el).find('.winning-number').map((j, n) => $(n).text().trim()).get();
+            const numbers = $(el).find('.winning-number').map(function (j, n) { return $(n).text().trim(); }).get();
             if (name && numbers.length > 0) {
-                results.push({ name, numbers });
+                results.push({ name: name, numbers: numbers });
             }
         });
 

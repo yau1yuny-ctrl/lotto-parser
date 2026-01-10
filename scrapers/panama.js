@@ -8,11 +8,11 @@ export async function scrapePanama() {
 
         const results = [];
 
-        $('.panel.panel-primary').each((i, el) => {
+        $('.panel.panel-primary').each(function (i, el) {
             const header = $(el).find('.panel-heading h2').text().trim();
             const table = $(el).find('.plr-md table');
             const data = {};
-            table.find('tr').each((j, tr) => {
+            table.find('tr').each(function (j, tr) {
                 const label = $(tr).find('td').eq(0).text().trim();
                 const value = $(tr).find('td').eq(1).text().trim();
                 if (label && value) {
@@ -21,7 +21,7 @@ export async function scrapePanama() {
             });
 
             if (header && Object.keys(data).length > 0) {
-                results.push({ header, data });
+                results.push({ header: header, data: data });
             }
         });
 

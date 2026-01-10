@@ -10,10 +10,9 @@ export async function scrapeUSLotteries(state) {
         const response = await axios.get(url);
         const $ = cheerio.load(response.data);
 
-        // Placeholder implementation as these sites often use heavy JS or APIs
-        return { message: `Scraping ${state} is complex and might need Playwright.` };
+        return { message: 'Scraping ' + state + ' is complex and might need Playwright.' };
     } catch (error) {
-        console.error(`Error scraping ${state}:`, error);
+        console.error('Error scraping ' + state + ':', error);
         return null;
     }
 }

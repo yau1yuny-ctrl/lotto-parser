@@ -6,16 +6,16 @@ export async function scrapeSuerteNica() {
     try {
         await page.goto('https://suertenica.com/', { waitUntil: 'networkidle' });
 
-        const results = await page.evaluate(() => {
+        const results = await page.evaluate(function () {
             const sections = Array.from(document.querySelectorAll('.resultados-container, .shortcode-container'));
-            return sections.map(section => {
-                const title = section.querySelector('h2.titulosorteo')?.innerText.trim();
-                const draws = Array.from(section.querySelectorAll('.resultado')).map(res => {
-                    const drawText = res.querySelector('p')?.innerText.trim();
-                    const numbers = Array.from(res.querySelectorAll('.bolilla')).map(b => b.innerText.trim());
-                    return { drawText, numbers };
+            return sections.map(function (section) {
+                const title = section.querySelector('h2.titulosorteo') ? section.querySelector('h2.titulosorteo').innerText.trim() : '';
+                const draws = Array.from(section.querySelectorAll('.resultado')).map(function (res) {
+                    const drawText = res.querySelector('p') ? res.querySelector('p').innerText.trim() : '';
+                    const numbers = Array.from(res.querySelectorAll('.bolilla')).map(function (b) { return b.innerText.trim(); });
+                    return { drawText: drawText, numbers: numbers };
                 });
-                return { title, draws };
+                return { title: title, draws: draws };
             });
         });
 

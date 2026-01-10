@@ -6,15 +6,20 @@ export async function scrapeCostaRica() {
     try {
         await page.goto('https://jps.go.cr/resultados', { waitUntil: 'networkidle' });
 
-        const results = await page.evaluate(() => {
+        const results = await page.evaluate(function () {
             const data = [];
             const sections = document.querySelectorAll('.view-resultados-individuales .views-row');
-            sections.forEach(row => {
-                const name = row.querySelector('.views-field-title')?.innerText.trim();
-                const number = row.querySelector('.views-field-field-numero-ganador')?.innerText.trim();
-                const serie = row.querySelector('.views-field-field-serie-ganadora')?.innerText.trim();
+            sections.forEach(function (row) {
+                const nameElem = row.querySelector('.views-field-title');
+                const numberElem = row.querySelector('.views-field-field-numero-ganador');
+                const serieElem = row.querySelector('.views-field-field-serie-ganadora');
+
+                const name = nameElem ? nameElem.innerText.trim() : '';
+                const number = numberElem ? numberElem.innerText.trim() : '';
+                const serie = serieElem ? serieElem.innerText.trim() : '';
+
                 if (name && number) {
-                    data.push({ name, number, serie });
+                    data.push({ name: name, number: number, serie: serie });
                 }
             });
             return data;
