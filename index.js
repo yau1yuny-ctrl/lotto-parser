@@ -1,7 +1,7 @@
 import { supabase } from './utils/supabase.js';
 import { scrapeSuerteNica } from './scrapers/nicaragua.js';
 import { scrapePanama } from './scrapers/panama.js';
-import { scrapeHonduras } from './scrapers/honduras_v4.js';
+import { scrapeHonduras } from './scrapers/honduras.js';
 import { scrapeCostaRica } from './scrapers/costa_rica.js';
 import { scrapeDominicanRepublic } from './scrapers/dominican_republic.js';
 import { scrapeUSLotteries } from './scrapers/us_lotteries.js';
