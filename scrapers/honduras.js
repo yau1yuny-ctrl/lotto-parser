@@ -1,52 +1,86 @@
 import { chromium } from 'playwright';
 
-export async function scrapeHonduras() {
-    console.log('Starting Honduras scraper - Simplified (Latest only)...');
-    const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
-    try {
-        await page.goto('https://loto.hn/', { waitUntil: 'networkidle' });
+async function getGameResults(page, url, gameName) {
+    console.log(`Fetching ${gameName} results from ${url}...`);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
+    await page.waitForTimeout(6000);
 
-        // Close common modals
-        await page.evaluate(function () {
-            const modal = document.querySelector('.pum-close, .close-modal, .et_social_close');
-            if (modal) {
-                modal.click();
-            }
-        });
+    // Close modals
+    await page.evaluate(function () {
+        const btns = document.querySelectorAll('.pum-close, #pum-close, .close-modal, .et_social_close');
+        btns.forEach(b => b.click());
+    });
 
-        const results = await page.evaluate(function () {
-            const games = {};
-            const dateElem = document.querySelector('.et_pb_text_1 .et_pb_text_inner');
-            const dateInfo = dateElem ? dateElem.innerText.trim() : '';
+    return await page.evaluate(function (game) {
+        const results = {};
+        const rows = document.querySelectorAll('.Rtable');
 
-            // Selectors for DIARIA and PREMIA2 on homepage
-            const mapping = {
-                'DIARIA': '.et_pb_column_1_3.et_pb_column_3',
-                'PREMIA2': '.et_pb_column_1_4.et_pb_column_6'
-            };
+        // We only want the results for the latest date shown on the page
+        // Usually the first few rows.
+        rows.forEach(row => {
+            const head = row.querySelector('.Rtable-cell--head');
+            const dataCell = row.querySelector('.Rtable-cell.border-left-td');
+            if (head && dataCell) {
+                const headText = head.innerText.trim();
+                const timeMatch = headText.match(/\d{1,2}:\d{2}\s*(AM|PM)/i);
 
-            for (const game in mapping) {
-                const selector = mapping[game];
-                const container = document.querySelector(selector);
-                if (container) {
-                    const spheres = container.querySelectorAll('.esferas span');
-                    const numbers = [];
-                    for (let i = 0; i < spheres.length; i++) {
-                        numbers.push(spheres[i].innerText.trim());
-                    }
-                    if (numbers.length > 0) {
-                        games[game] = numbers;
+                if (timeMatch) {
+                    const time = timeMatch[0].toUpperCase();
+                    // If we already have a result for this time, it's likely from an older date
+                    if (results[time]) return;
+
+                    const allDigits = Array.from(dataCell.querySelectorAll('.esferas span'))
+                        .map(s => s.innerText.trim())
+                        .filter(n => n.length > 0 && !isNaN(n));
+
+                    if (game === 'DIARIA') {
+                        // Diaria might show the digit and more info. 
+                        // According to subagent, it's just the digits in spans.
+                        const digits = allDigits.slice(0, 2).join('');
+                        if (digits) results[time] = [digits];
+                    } else if (game === 'PREMIA2') {
+                        const pairs = [];
+                        for (let i = 0; i < allDigits.length; i += 2) {
+                            const pair = allDigits.slice(i, i + 2).join('');
+                            if (pair) pairs.push(pair);
+                            if (pairs.length === 2) break; // We only need the first two pairs
+                        }
+                        if (pairs.length > 0) results[time] = pairs;
                     }
                 }
             }
+        });
+        return results;
+    }, gameName);
+}
 
-            return { date: dateInfo, games: games };
+export async function scrapeHonduras() {
+    console.log('Starting Honduras scraper - Composite Final Attempt...');
+    const browser = await chromium.launch({ headless: true });
+    try {
+        const page = await browser.newPage();
+        page.setDefaultTimeout(120000);
+
+        const diaria = await getGameResults(page, 'https://loto.hn/diaria/', 'DIARIA');
+        const premia2 = await getGameResults(page, 'https://loto.hn/premia2/', 'PREMIA2');
+
+        const finalData = [];
+        const allTimes = ['11:00 AM', '3:00 PM', '9:00 PM'];
+
+        allTimes.forEach(time => {
+            const d = diaria[time];
+            const p = premia2[time];
+            if (d && p && p.length >= 2) {
+                finalData.push({
+                    time: time,
+                    prizes: [d[0], p[0], p[1]]
+                });
+            }
         });
 
-        return results;
+        return finalData;
     } catch (error) {
-        console.error('Error in Honduras scraper:', error);
+        console.error('Error in Honduras Scraper:', error.message);
         return null;
     } finally {
         await browser.close();
