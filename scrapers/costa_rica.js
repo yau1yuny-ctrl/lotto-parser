@@ -1,56 +1,55 @@
 ﻿import { chromium } from 'playwright';
 
 export async function scrapeCostaRica() {
-    console.log('Starting Costa Rica scraper (Robust version)...');
+    console.log('Starting Costa Rica scraper (Robust Composite version)...');
     const browser = await chromium.launch({ headless: true });
     try {
         const page = await browser.newPage();
-        // Set a long timeout for the entire process
         page.setDefaultTimeout(120000);
 
         console.log('Navigating to JPS results page...');
-        // Wait for 'commit' instead of 'networkidle' to avoid timeouts on slow assets
-        await page.goto('https://jps.go.cr/resultados', { waitUntil: 'commit', timeout: 90000 });
+        await page.goto('https://jps.go.cr/resultados', { waitUntil: 'domcontentloaded', timeout: 90000 });
 
-        console.log('Waiting for content to appear...');
-        // Wait for any draw-related text
-        await page.waitForSelector('text=Mediodía, Tarde, Noche', { timeout: 60000 }).catch(() => console.log('Timeout waiting for text'));
+        console.log('Waiting for content to settle...');
+        await page.waitForTimeout(10000); // Wait 10s for the page to actually render
 
-        // Scroll to ensure JS loads content
-        await page.evaluate(() => window.scrollBy(0, 1500));
-        await page.waitForTimeout(3000);
+        // Scroll several times to trigger lazy loading
+        await page.evaluate(async () => {
+            for (let i = 0; i < 5; i++) {
+                window.scrollBy(0, 1000);
+                await new Promise(r => setTimeout(r, 1000));
+            }
+        });
 
         const results = await page.evaluate(function () {
-            const data = [];
+            const rawData = {};
 
-            // Targeted games
-            const configs = [
-                { id: 'header-3Monazos', name: '3 Monazos' },
-                { id: 'header-NuevosTiemposReventados', name: 'Nuevos Tiempos' }
+            // Function to find a game container by header text
+            function findGameContainer(text) {
+                const headers = Array.from(document.querySelectorAll('h1, h2, h3, h4, span, p'));
+                const header = headers.find(h => h.innerText.trim().includes(text));
+                if (!header) return null;
+                return header.closest('.flex.flex-col') || header.parentElement.parentElement;
+            }
+
+            const games = [
+                { search: 'Monazos', key: 'monazo' },
+                { search: 'Nuevos Tiempos', key: 'tiempos' }
             ];
 
-            configs.forEach(config => {
-                const header = document.getElementById(config.id);
-                if (!header) return;
+            games.forEach(game => {
+                const container = findGameContainer(game.search);
+                if (!container) return;
 
-                const parent = header.closest('.flex.flex-col') || header.parentElement.parentElement;
-                const gameName = config.name;
+                const drawContainers = container.querySelectorAll('.flex.flex-row.justify-between');
+                drawContainers.forEach(draw => {
+                    const timeEl = draw.querySelector('p.font-bold, span.font-bold');
+                    if (!timeEl) return;
 
-                // Find date
-                const dateBtn = parent.querySelector('button.min-w-fit, span:contains("Viernes"), span:contains("9 de Enero")');
-                const dateText = dateBtn ? dateBtn.innerText.trim() : 'Hoy';
-
-                const draws = [];
-                // Look for draw containers
-                const drawContainers = parent.querySelectorAll('.flex.flex-row.justify-between');
-
-                drawContainers.forEach(container => {
-                    const timeEl = container.querySelector('p.font-bold, span.font-bold');
-                    const time = timeEl ? timeEl.innerText.trim() : '';
-
+                    const time = timeEl.innerText.trim();
                     if (['Mediodía', 'Tarde', 'Noche'].includes(time)) {
                         const numbers = [];
-                        const numEls = container.querySelectorAll('span.font-bold, p.font-bold.text-2xl');
+                        const numEls = draw.querySelectorAll('span.font-bold, p.font-bold.text-2xl');
                         numEls.forEach(n => {
                             const val = n.innerText.trim();
                             if (val && val.match(/^\d+$/) && val !== time && val.length <= 4) {
@@ -59,23 +58,32 @@ export async function scrapeCostaRica() {
                         });
 
                         if (numbers.length > 0) {
-                            if (!draws.find(d => d.time === time)) {
-                                draws.push({ time: time, numbers: numbers });
-                            }
+                            if (!rawData[time]) rawData[time] = {};
+                            rawData[time][game.key] = numbers;
                         }
                     }
                 });
+            });
 
-                if (draws.length > 0) {
-                    data.push({
-                        name: gameName,
-                        date: dateText,
-                        draws: draws
+            // Calculate Monazo Composite
+            const finalResults = [];
+            ['Mediodía', 'Tarde', 'Noche'].forEach(time => {
+                const d = rawData[time];
+                if (d && d.tiempos && d.monazo && d.tiempos.length > 0 && d.monazo.length >= 3) {
+                    const nt = d.tiempos[0];
+                    const m = d.monazo;
+                    finalResults.push({
+                        time: time,
+                        prizes: [
+                            nt,               // 1er: Nuevos Tiempos
+                            m[0] + m[1],      // 2do: Monazo 1+2
+                            m[1] + m[2]       // 3er: Monazo 2+3
+                        ]
                     });
                 }
             });
 
-            return data;
+            return finalResults;
         });
 
         return results;
