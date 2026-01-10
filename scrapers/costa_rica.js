@@ -1,89 +1,123 @@
-﻿import { chromium } from 'playwright';
+﻿import { chromium } from 'playwright-extra';
+import stealth from 'puppeteer-extra-plugin-stealth';
+
+// Use the stealth plugin
+chromium.use(stealth());
 
 export async function scrapeCostaRica() {
-    console.log('Starting Costa Rica scraper (Robust Composite version)...');
+    console.log('Starting Costa Rica scraper (Stealth Mode V3)...');
     const browser = await chromium.launch({ headless: true });
     try {
-        const page = await browser.newPage();
+        const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        });
+
+        const page = await context.newPage();
         page.setDefaultTimeout(120000);
 
         console.log('Navigating to JPS results page...');
-        await page.goto('https://jps.go.cr/resultados', { waitUntil: 'domcontentloaded', timeout: 90000 });
+        await page.goto('https://www.jps.go.cr/resultados', { waitUntil: 'networkidle', timeout: 90000 });
 
         console.log('Waiting for content to settle...');
-        await page.waitForTimeout(10000); // Wait 10s for the page to actually render
-
-        // Scroll several times to trigger lazy loading
-        await page.evaluate(async () => {
-            for (let i = 0; i < 5; i++) {
-                window.scrollBy(0, 1000);
-                await new Promise(r => setTimeout(r, 1000));
-            }
-        });
+        await page.waitForTimeout(15000);
 
         const results = await page.evaluate(function () {
-            const rawData = {};
+            const data = [];
+            const draws = ['Mediodía', 'Tarde', 'Noche'];
 
-            // Function to find a game container by header text
-            function findGameContainer(text) {
-                const headers = Array.from(document.querySelectorAll('h1, h2, h3, h4, span, p'));
-                const header = headers.find(h => h.innerText.trim().includes(text));
-                if (!header) return null;
-                return header.closest('.flex.flex-col') || header.parentElement.parentElement;
-            }
+            // Map to store raw digits found near draw times
+            const raw = { 'Mediodía': {}, 'Tarde': {}, 'Noche': {} };
 
-            const games = [
-                { search: 'Monazos', key: 'monazo' },
-                { search: 'Nuevos Tiempos', key: 'tiempos' }
-            ];
+            // We'll iterate through all text nodes or specific cards
+            const cards = document.querySelectorAll('.card, section, [class*="Container"]');
 
-            games.forEach(game => {
-                const container = findGameContainer(game.search);
-                if (!container) return;
+            cards.forEach(card => {
+                const text = card.innerText;
+                // Determine which game this card is for
+                let game = null;
+                if (text.includes('Nuevos Tiempos')) game = 'NT';
+                else if (text.includes('3 Monazos')) game = '3M';
 
-                const drawContainers = container.querySelectorAll('.flex.flex-row.justify-between');
-                drawContainers.forEach(draw => {
-                    const timeEl = draw.querySelector('p.font-bold, span.font-bold');
-                    if (!timeEl) return;
+                if (game) {
+                    draws.forEach(draw => {
+                        // Find the draw header (e.g., "Tarde")
+                        const allNodes = Array.from(card.querySelectorAll('*'));
+                        const drawEl = allNodes.find(el => el.children.length === 0 && el.innerText.trim() === draw);
 
-                    const time = timeEl.innerText.trim();
-                    if (['Mediodía', 'Tarde', 'Noche'].includes(time)) {
-                        const numbers = [];
-                        const numEls = draw.querySelectorAll('span.font-bold, p.font-bold.text-2xl');
-                        numEls.forEach(n => {
-                            const val = n.innerText.trim();
-                            if (val && val.match(/^\d+$/) && val !== time && val.length <= 4) {
-                                numbers.push(val);
+                        if (drawEl) {
+                            // The numbers are usually in the next siblings or same parent
+                            let container = drawEl.parentElement;
+                            let attempt = 0;
+                            let numbers = [];
+
+                            while (attempt < 3 && numbers.length === 0) {
+                                numbers = Array.from(container.querySelectorAll('.numero, .ball, .esfera, span'))
+                                    .map(s => s.innerText.trim())
+                                    .filter(t => /^\d+$/.test(t));
+                                container = container.parentElement;
+                                attempt++;
                             }
-                        });
 
-                        if (numbers.length > 0) {
-                            if (!rawData[time]) rawData[time] = {};
-                            rawData[time][game.key] = numbers;
+                            if (numbers.length > 0) {
+                                // For NT, if we see something like [89, 40], take the first
+                                // For 3M, take the first 3
+                                if (game === 'NT') raw[draw].NT = numbers[0];
+                                else if (game === '3M' && numbers.length >= 3) raw[draw].M3 = numbers.slice(0, 3);
+                            }
                         }
-                    }
-                });
-            });
-
-            // Calculate Monazo Composite
-            const finalResults = [];
-            ['Mediodía', 'Tarde', 'Noche'].forEach(time => {
-                const d = rawData[time];
-                if (d && d.tiempos && d.monazo && d.tiempos.length > 0 && d.monazo.length >= 3) {
-                    const nt = d.tiempos[0];
-                    const m = d.monazo;
-                    finalResults.push({
-                        time: time,
-                        prizes: [
-                            nt,               // 1er: Nuevos Tiempos
-                            m[0] + m[1],      // 2do: Monazo 1+2
-                            m[1] + m[2]       // 3er: Monazo 2+3
-                        ]
                     });
                 }
             });
 
-            return finalResults;
+            // If we didn't find them via cards, try a global text-based search (fallback)
+            if (!raw.Tarde.NT || !raw.Tarde.M3) {
+                const bodyText = document.body.innerText;
+                draws.forEach(draw => {
+                    // This is much harder via regex but let's try finding the draw name and numbers after it
+                    // Based on text dump: "Tarde\n6\n7\n7"
+                    const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                    for (let i = 0; i < lines.length; i++) {
+                        if (lines[i] === draw) {
+                            // Look ahead for numbers
+                            const nextNumbers = [];
+                            for (let j = i + 1; j < i + 6 && j < lines.length; j++) {
+                                if (/^\d+$/.test(lines[j])) nextNumbers.push(lines[j]);
+                                else if (nextNumbers.length > 0) break;
+                            }
+
+                            if (nextNumbers.length >= 1) {
+                                // We need a way to distinguish NT from 3M in this flat list
+                                // Usually 3 Monazos comes first in the page or vice versa
+                                // Let's look at the "Sorteo" number above it
+                                const sorteoLine = lines[i - 1] || "";
+                                // 3 Monazos sorteos are usually 4-digits (e.g. 5688), NT are 5-digits (23262)
+                                if (sorteoLine.includes('Sorteo')) {
+                                    const numMatch = sorteoLine.match(/\d+/);
+                                    if (numMatch) {
+                                        const sNum = parseInt(numMatch[0]);
+                                        if (sNum < 15000 && nextNumbers.length >= 3) raw[draw].M3 = nextNumbers.slice(0, 3);
+                                        else if (sNum >= 15000) raw[draw].NT = nextNumbers[0];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Combine
+            draws.forEach(draw => {
+                const nt = raw[draw].NT;
+                const m3 = raw[draw].M3;
+                if (nt && m3 && m3.length === 3) {
+                    data.push({
+                        time: draw,
+                        prizes: [nt, m3[0] + m3[1], m3[1] + m3[2]]
+                    });
+                }
+            });
+
+            return data;
         });
 
         return results;
