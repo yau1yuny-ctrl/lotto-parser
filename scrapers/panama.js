@@ -1,33 +1,53 @@
-﻿import axios from 'axios';
-import * as cheerio from 'cheerio';
+﻿import { chromium } from 'playwright';
 
 export async function scrapePanama() {
+    console.log('Starting Panama scraper...');
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
     try {
-        const response = await axios.get('https://panamaloteria.com/');
-        const $ = cheerio.load(response.data);
+        await page.goto('https://panamaloteria.com/', { waitUntil: 'networkidle' });
 
-        const results = [];
+        const results = await page.evaluate(function () {
+            const data = [];
+            const panels = document.querySelectorAll('.panel.panel-success, .panel.panel-primary');
 
-        $('.panel.panel-primary').each(function (i, el) {
-            const header = $(el).find('.panel-heading h2').text().trim();
-            const table = $(el).find('.plr-md table');
-            const data = {};
-            table.find('tr').each(function (j, tr) {
-                const label = $(tr).find('td').eq(0).text().trim();
-                const value = $(tr).find('td').eq(1).text().trim();
-                if (label && value) {
-                    data[label] = value;
+            panels.forEach(function (panel) {
+                const headerEl = panel.querySelector('.panel-heading h2');
+                if (!headerEl) return;
+
+                const fullTitle = headerEl.innerText.trim();
+                const table = panel.querySelector('table');
+                if (!table) return;
+
+                const gameData = {};
+                const rows = table.querySelectorAll('tr');
+                rows.forEach(function (row) {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 2) {
+                        const label = cells[0].innerText.trim();
+                        const value = cells[1].innerText.trim();
+                        if (label && value) {
+                            gameData[label] = value;
+                        }
+                    }
+                });
+
+                if (Object.keys(gameData).length > 0) {
+                    data.push({
+                        title: fullTitle,
+                        results: gameData
+                    });
                 }
             });
 
-            if (header && Object.keys(data).length > 0) {
-                results.push({ header: header, data: data });
-            }
+            return data;
         });
 
         return results;
     } catch (error) {
-        console.error('Error scraping Panama:', error);
+        console.error('Error in Panama scraper:', error);
         return null;
+    } finally {
+        await browser.close();
     }
 }
