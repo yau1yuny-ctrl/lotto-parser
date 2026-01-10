@@ -1,41 +1,67 @@
 ﻿import { chromium } from 'playwright';
 
 export async function scrapePanama() {
-    console.log('Starting Panama scraper...');
+    console.log('Starting official Panama LNB scraper (Final Version)...');
     const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
     try {
-        await page.goto('https://panamaloteria.com/', { waitUntil: 'networkidle' });
+        const page = await browser.newPage();
+        page.setDefaultTimeout(120000);
+
+        console.log('Navigating to LNB official page...');
+        await page.goto('https://www.lnb.gob.pa/', { waitUntil: 'domcontentloaded', timeout: 90000 });
+
+        console.log('Waiting for content...');
+        await page.waitForTimeout(7000);
 
         const results = await page.evaluate(function () {
             const data = [];
-            const panels = document.querySelectorAll('.panel.panel-success, .panel.panel-primary');
 
-            panels.forEach(function (panel) {
-                const headerEl = panel.querySelector('.panel-heading h2');
-                if (!headerEl) return;
+            // Each draw is in a containerTablero
+            const containers = document.querySelectorAll('div.containerTablero');
 
-                const fullTitle = headerEl.innerText.trim();
-                const table = panel.querySelector('table');
-                if (!table) return;
+            containers.forEach(container => {
+                // Identify the draw by the logo image
+                const logoImg = container.querySelector('.sorteo-logo img');
+                let drawName = 'Sorteo Desconocido';
 
-                const gameData = {};
-                const rows = table.querySelectorAll('tr');
-                rows.forEach(function (row) {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 2) {
-                        const label = cells[0].innerText.trim();
-                        const value = cells[1].innerText.trim();
-                        if (label && value) {
-                            gameData[label] = value;
+                if (logoImg) {
+                    const src = logoImg.src;
+                    if (src.includes('TableroD.webp')) drawName = 'Sorteo Dominical';
+                    else if (src.includes('TableroI.webp')) drawName = 'Sorteo Miercolito';
+                    else if (src.includes('TableroZ.webp')) drawName = 'Gordito del Zodíaco';
+                    else if (src.includes('TableroE.webp')) drawName = 'Sorteo Extraordinario';
+                }
+
+                // Prizes are in .premio blocks
+                const prizes = [];
+                const premioBlocks = container.querySelectorAll('.premio');
+
+                premioBlocks.forEach((block, index) => {
+                    const labelEl = block.querySelector('h2');
+                    const numberEl = block.querySelector('.premio-number');
+
+                    if (numberEl) {
+                        const label = labelEl ? labelEl.innerText.trim() : `Premio ${index + 1}`;
+                        const number = numberEl.innerText.trim();
+
+                        let prizeObj = { label: label, number: number };
+
+                        // If it's the 1st prize, try to get the letters
+                        if (index === 0) {
+                            const lettersEl = container.querySelector('.primer-premio-details .value');
+                            if (lettersEl) {
+                                prizeObj.letras = lettersEl.innerText.trim();
+                            }
                         }
+
+                        prizes.push(prizeObj);
                     }
                 });
 
-                if (Object.keys(gameData).length > 0) {
+                if (prizes.length > 0) {
                     data.push({
-                        title: fullTitle,
-                        results: gameData
+                        title: drawName,
+                        prizes: prizes
                     });
                 }
             });
@@ -45,7 +71,7 @@ export async function scrapePanama() {
 
         return results;
     } catch (error) {
-        console.error('Error in Panama scraper:', error);
+        console.error('Error in Panama LNB scraper:', error.message);
         return null;
     } finally {
         await browser.close();
