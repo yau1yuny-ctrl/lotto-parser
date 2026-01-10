@@ -2,8 +2,59 @@ name: Lottery Scraper
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # Runs every 30 minutes to check for new draws
+    # Dominican Republic - La Primera (11:00 AM) - Run at 11:05 AM
+    - cron: '5 16 * * *'  # 11:05 AM Panama = 16:05 UTC
+    
+    # Honduras (12:00 PM) - Run at 12:05 PM
+    - cron: '5 17 * * *'  # 12:05 PM Panama = 17:05 UTC
+    
+    # Nicaragua (1:00 PM) - Run at 1:05 PM
+    - cron: '5 18 * * *'  # 1:05 PM Panama = 18:05 UTC
+    
+    # Costa Rica - Monazo Mediodía (1:55 PM) - Run at 2:00 PM
+    - cron: '0 19 * * *'  # 2:00 PM Panama = 19:00 UTC
+    
+    # USA - New York Midday (2:30 PM) - Run at 2:35 PM
+    - cron: '35 19 * * *'  # 2:35 PM Panama = 19:35 UTC
+    
+    # Panama - Lotería Nacional (3:00 PM Wed/Sun) - Run at 3:05 PM
+    - cron: '5 20 * * 3,0'  # 3:05 PM Panama = 20:05 UTC (Wed=3, Sun=0)
+    
+    # Nicaragua (4:00 PM) - Run at 4:05 PM
+    - cron: '5 21 * * *'  # 4:05 PM Panama = 21:05 UTC
+    
+    # Honduras (4:00 PM) - Run at 4:05 PM
+    # (Same as Nicaragua, will run together)
+    
+    # Costa Rica - Monazo Tarde (5:30 PM) - Run at 5:35 PM
+    - cron: '35 22 * * *'  # 5:35 PM Panama = 22:35 UTC
+    
+    # Dominican Republic - La Primera (6:00 PM) - Run at 6:05 PM
+    - cron: '5 23 * * *'  # 6:05 PM Panama = 23:05 UTC
+    
+    # Nicaragua (7:00 PM) - Run at 7:05 PM
+    - cron: '5 0 * * *'  # 7:05 PM Panama = 00:05 UTC (next day)
+    
+    # Costa Rica - Tica (8:30 PM) - Run at 8:35 PM
+    - cron: '35 1 * * *'  # 8:35 PM Panama = 01:35 UTC (next day)
+    
+    # USA - Florida (9:30 PM) - Run at 9:35 PM
+    - cron: '35 2 * * *'  # 9:35 PM Panama = 02:35 UTC (next day)
+    
+    # Nicaragua (10:00 PM) - Run at 10:05 PM
+    - cron: '5 3 * * *'  # 10:05 PM Panama = 03:05 UTC (next day)
+    
+    # Honduras (10:00 PM) - Run at 10:05 PM
+    # (Same as Nicaragua, will run together)
+    
+    # USA - New York Evening (10:30 PM) - Run at 10:35 PM
+    - cron: '35 3 * * *'  # 10:35 PM Panama = 03:35 UTC (next day)
+    
   workflow_dispatch: # Allows manual trigger
+
+concurrency:
+  group: lottery-scraper
+  cancel-in-progress: true
 
 jobs:
   scrape:

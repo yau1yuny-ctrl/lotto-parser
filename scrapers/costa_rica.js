@@ -1,11 +1,11 @@
-﻿import { chromium } from 'playwright-extra';
-import stealth from 'puppeteer-extra-plugin-stealth';
+﻿import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('../utils/stealth-browser.cjs');
 
-// Use the stealth plugin
-chromium.use(stealth());
+// Stealth plugin configured via CommonJS wrapper
 
 export async function scrapeCostaRica() {
-    console.log('Starting Costa Rica scraper (Stealth Mode V3)...');
+    console.log('Starting Costa Rica scraper (8:30 PM Tica - Schedule Refined)...');
     const browser = await chromium.launch({ headless: true });
     try {
         const context = await browser.newContext({
@@ -18,106 +18,134 @@ export async function scrapeCostaRica() {
         console.log('Navigating to JPS results page...');
         await page.goto('https://www.jps.go.cr/resultados', { waitUntil: 'networkidle', timeout: 90000 });
 
-        console.log('Waiting for content to settle...');
+        console.log('Waiting for content...');
         await page.waitForTimeout(15000);
 
         const results = await page.evaluate(function () {
-            const data = [];
+            const finalData = [];
             const draws = ['Mediodía', 'Tarde', 'Noche'];
 
-            // Map to store raw digits found near draw times
+            const bodyText = document.body.innerText;
+            const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            // 1. Identify the LATEST date on the page (e.g. "Viernes, 9 de Enero")
+            // This determines which rule to apply for the "8:30 PM Tica" draw
+            const dateLine = lines.find(l =>
+                l.includes('Lunes') || l.includes('Martes') || l.includes('Miércoles') ||
+                l.includes('Jueves') || l.includes('Viernes') || l.includes('Sábado') ||
+                l.includes('Domingo')
+            );
+
+            let dayOfWeek = "";
+            if (dateLine) {
+                if (dateLine.includes('Lunes')) dayOfWeek = 'LUNES';
+                else if (dateLine.includes('Martes')) dayOfWeek = 'MARTES';
+                else if (dateLine.includes('Miércoles')) dayOfWeek = 'MIÉRCOLES';
+                else if (dateLine.includes('Jueves')) dayOfWeek = 'JUEVES';
+                else if (dateLine.includes('Viernes')) dayOfWeek = 'VIERNES';
+                else if (dateLine.includes('Sábado')) dayOfWeek = 'SÁBADO';
+                else if (dateLine.includes('Domingo')) dayOfWeek = 'DOMINGO';
+            }
+
             const raw = { 'Mediodía': {}, 'Tarde': {}, 'Noche': {} };
+            let specialPrizes = null;
 
-            // We'll iterate through all text nodes or specific cards
-            const cards = document.querySelectorAll('.card, section, [class*="Container"]');
+            // Group by "Sorteo" blocks to keep results contextual
+            let currentBlock = null;
+            const blocks = [];
+            lines.forEach(l => {
+                if (l.toLowerCase().includes('sorteo')) {
+                    if (currentBlock) blocks.push(currentBlock);
+                    currentBlock = { head: l, lines: [] };
+                } else if (currentBlock) currentBlock.lines.push(l);
+            });
+            if (currentBlock) blocks.push(currentBlock);
 
-            cards.forEach(card => {
-                const text = card.innerText;
-                // Determine which game this card is for
-                let game = null;
-                if (text.includes('Nuevos Tiempos')) game = 'NT';
-                else if (text.includes('3 Monazos')) game = '3M';
+            blocks.forEach(b => {
+                const head = b.head;
+                const text = b.lines.join(' ');
+                const sNum = parseInt(head.match(/\d+/)?.[0] || '0');
 
-                if (game) {
-                    draws.forEach(draw => {
-                        // Find the draw header (e.g., "Tarde")
-                        const allNodes = Array.from(card.querySelectorAll('*'));
-                        const drawEl = allNodes.find(el => el.children.length === 0 && el.innerText.trim() === draw);
-
-                        if (drawEl) {
-                            // The numbers are usually in the next siblings or same parent
-                            let container = drawEl.parentElement;
-                            let attempt = 0;
-                            let numbers = [];
-
-                            while (attempt < 3 && numbers.length === 0) {
-                                numbers = Array.from(container.querySelectorAll('.numero, .ball, .esfera, span'))
-                                    .map(s => s.innerText.trim())
-                                    .filter(t => /^\d+$/.test(t));
-                                container = container.parentElement;
-                                attempt++;
-                            }
-
-                            if (numbers.length > 0) {
-                                // For NT, if we see something like [89, 40], take the first
-                                // For 3M, take the first 3
-                                if (game === 'NT') raw[draw].NT = numbers[0];
-                                else if (game === '3M' && numbers.length >= 3) raw[draw].M3 = numbers.slice(0, 3);
+                // 1. Monazos / Nuevos Tiempos
+                if (sNum >= 5000) {
+                    draws.forEach(d => {
+                        if (text.includes(d)) {
+                            const nums = b.lines.filter(l => /^\d{1,2}$/.test(l));
+                            if (sNum > 15000 && nums.length >= 1) { // Nuevos Tiempos
+                                raw[d].NT = nums[0].padStart(2, '0');
+                            } else if (sNum < 15000 && nums.length >= 3) { // 3 Monazos
+                                raw[d].M3 = nums.slice(0, 3).map(n => n.trim());
                             }
                         }
                     });
                 }
-            });
 
-            // If we didn't find them via cards, try a global text-based search (fallback)
-            if (!raw.Tarde.NT || !raw.Tarde.M3) {
-                const bodyText = document.body.innerText;
-                draws.forEach(draw => {
-                    // This is much harder via regex but let's try finding the draw name and numbers after it
-                    // Based on text dump: "Tarde\n6\n7\n7"
-                    const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                    for (let i = 0; i < lines.length; i++) {
-                        if (lines[i] === draw) {
-                            // Look ahead for numbers
-                            const nextNumbers = [];
-                            for (let j = i + 1; j < i + 6 && j < lines.length; j++) {
-                                if (/^\d+$/.test(lines[j])) nextNumbers.push(lines[j]);
-                                else if (nextNumbers.length > 0) break;
-                            }
-
-                            if (nextNumbers.length >= 1) {
-                                // We need a way to distinguish NT from 3M in this flat list
-                                // Usually 3 Monazos comes first in the page or vice versa
-                                // Let's look at the "Sorteo" number above it
-                                const sorteoLine = lines[i - 1] || "";
-                                // 3 Monazos sorteos are usually 4-digits (e.g. 5688), NT are 5-digits (23262)
-                                if (sorteoLine.includes('Sorteo')) {
-                                    const numMatch = sorteoLine.match(/\d+/);
-                                    if (numMatch) {
-                                        const sNum = parseInt(numMatch[0]);
-                                        if (sNum < 15000 && nextNumbers.length >= 3) raw[draw].M3 = nextNumbers.slice(0, 3);
-                                        else if (sNum >= 15000) raw[draw].NT = nextNumbers[0];
-                                    }
-                                }
-                            }
+                // 2. Chances / Lotería Nacional
+                if (text.includes('1er') && text.includes('LUGAR')) {
+                    const tv = [];
+                    for (let i = 0; i < b.lines.length; i++) {
+                        if (b.lines[i].includes('LUGAR')) {
+                            const n = b.lines[i + 1];
+                            if (n && /^\d{2}$/.test(n)) tv.push(n);
                         }
                     }
+                    if (tv.length >= 3) {
+                        const isNational = text.includes('Nacional');
+                        const isChances = !isNational;
+
+                        // We take the one with the highest Sorteo number (most recent)
+                        if (!specialPrizes || sNum > specialPrizes.sorteo) {
+                            specialPrizes = {
+                                prizes: tv.slice(0, 3),
+                                sorteo: sNum,
+                                isNational: isNational,
+                                isChances: isChances
+                            };
+                        }
+                    }
+                }
+            });
+
+            // Standard Draws (Mediodía, Tarde, Noche)
+            draws.forEach(d => {
+                if (raw[d].NT && raw[d].M3) {
+                    finalData.push({
+                        time: d,
+                        prizes: [raw[d].NT, raw[d].M3[0] + raw[d].M3[1], raw[d].M3[1] + raw[d].M3[2]]
+                    });
+                }
+            });
+
+            // --- 8:30 PM Tica Selection Logic ---
+            // Lunes, Miércoles, Jueves, Sábado -> Monazo con Nuevos Tiempos
+            // Martes, Viernes -> Chances (1er, 2do, 3er Premio)
+            // Domingo -> Lotería Nacional (1er, 2do, 3er Premio)
+
+            const scheduleRule = {
+                'LUNES': 'MONAZO',
+                'MARTES': 'CHANCES',
+                'MIÉRCOLES': 'MONAZO',
+                'JUEVES': 'MONAZO',
+                'VIERNES': 'CHANCES',
+                'SÁBADO': 'MONAZO',
+                'DOMINGO': 'NATIONAL'
+            };
+
+            const rule = scheduleRule[dayOfWeek] || 'MONAZO';
+
+            if (rule === 'CHANCES' && specialPrizes && specialPrizes.isChances) {
+                finalData.push({ time: '8:30 PM Tica', prizes: specialPrizes.prizes });
+            } else if (rule === 'NATIONAL' && specialPrizes && specialPrizes.isNational) {
+                finalData.push({ time: '8:30 PM Tica', prizes: specialPrizes.prizes });
+            } else if (raw.Noche.NT && raw.Noche.M3) {
+                // Fallback / Standard: Use the Monazo Noche composite system
+                finalData.push({
+                    time: '8:30 PM Tica',
+                    prizes: [raw.Noche.NT, raw.Noche.M3[0] + raw.Noche.M3[1], raw.Noche.M3[1] + raw.Noche.M3[2]]
                 });
             }
 
-            // Combine
-            draws.forEach(draw => {
-                const nt = raw[draw].NT;
-                const m3 = raw[draw].M3;
-                if (nt && m3 && m3.length === 3) {
-                    data.push({
-                        time: draw,
-                        prizes: [nt, m3[0] + m3[1], m3[1] + m3[2]]
-                    });
-                }
-            });
-
-            return data;
+            return finalData;
         });
 
         return results;

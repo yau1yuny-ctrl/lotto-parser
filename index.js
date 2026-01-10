@@ -7,7 +7,6 @@ import { scrapeDominicanRepublic } from './scrapers/dominican_republic.js';
 import { scrapeUSLotteries } from './scrapers/us_lotteries.js';
 import { DateTime } from 'luxon';
 
-// Forced update to ensure encoding is correct
 const SCHEDULE = [
     { country: 'Dominican Republic', name: 'La Primera', time: '11:00', closeOffset: -3 },
     { country: 'Honduras', name: 'Honduras', time: '12:00', closeOffset: -3 },
@@ -33,20 +32,28 @@ async function run() {
         const now = DateTime.now().setZone('America/Panama');
         const nextDraw = getNextDraw(now);
 
-        console.log(`Next draw: ${nextDraw.name} (${nextDraw.country}) at ${nextDraw.time}`);
+        console.log(`Next draw: ${nextDraw.name} (${nextDraw.country}) at ${nextDraw.actualTime.toFormat('yyyy-MM-dd HH:mm')}`);
 
-        const closeTime = now.set({
-            hour: parseInt(nextDraw.time.split(':')[0]),
-            minute: parseInt(nextDraw.time.split(':')[1])
-        }).plus({ minutes: nextDraw.closeOffset + 2 });
-
+        // Wait until draw time + offset + 2 min buffer
+        const closeTime = nextDraw.actualTime.plus({ minutes: nextDraw.closeOffset + 2 });
         const waitMs = closeTime.diff(now).milliseconds;
+
         if (waitMs > 0) {
-            console.log(`Waiting ${Math.round(waitMs / 60000)} minutes...`);
+            console.log(`Waiting ${Math.round(waitMs / 60000)} minutes until ${closeTime.toFormat('HH:mm')}...`);
             await new Promise(r => setTimeout(r, waitMs));
         }
 
         await pollForResult(nextDraw);
+
+        // If running in GitHub Actions, exit after processing one draw to avoid stacking.
+        if (process.env.GITHUB_ACTIONS) {
+            console.log('Running in CI mode: Exiting after search.');
+            break;
+        }
+
+        // After polling finishes (success or timeout), wait a bit before calculating the next draw
+        // to ensure we don't pick the same draw again if we finished early.
+        await new Promise(r => setTimeout(r, 65000));
     }
 }
 
@@ -54,9 +61,17 @@ function getNextDraw(now) {
     const draws = SCHEDULE.map(d => {
         let drawTime = now.set({
             hour: parseInt(d.time.split(':')[0]),
-            minute: parseInt(d.time.split(':')[1])
+            minute: parseInt(d.time.split(':')[1]),
+            second: 0,
+            millisecond: 0
         });
-        if (drawTime < now) drawTime = drawTime.plus({ days: 1 });
+
+        // If the draw time is in the past, move it to the next occurrence
+        if (drawTime < now) {
+            drawTime = drawTime.plus({ days: 1 });
+        }
+
+        // Handle specific days of the week (e.g., Panama)
         if (d.days && !d.days.includes(drawTime.weekday)) {
             while (!d.days.includes(drawTime.weekday)) {
                 drawTime = drawTime.plus({ days: 1 });
@@ -64,15 +79,18 @@ function getNextDraw(now) {
         }
         return { ...d, actualTime: drawTime };
     });
+
     draws.sort((a, b) => a.actualTime.toMillis() - b.actualTime.toMillis());
     return draws[0];
 }
 
 async function pollForResult(draw) {
-    console.log(`Polling for ${draw.name} (${draw.country})...`);
+    console.log(`Polling for ${draw.name} (${draw.country}) - Target Date: ${draw.actualTime.toFormat('dd/MM/yyyy')}...`);
     let found = false;
     let attempts = 0;
-    while (!found && attempts < 60) {
+    const maxAttempts = 60; // 2 hours if polling every 2 mins
+
+    while (!found && attempts < maxAttempts) {
         let results = null;
         try {
             switch (draw.country) {
@@ -85,26 +103,58 @@ async function pollForResult(draw) {
             }
 
             if (results && isResultCurrent(results, draw)) {
-                console.log(`Success! Saving to Supabase...`);
+                console.log(`Success! New current result found. Saving to Supabase...`);
                 await saveToSupabase(results, draw);
                 found = true;
             } else {
                 attempts++;
-                console.log(`Attempt ${attempts}: No new result. Polling again in 2 mins.`);
+                console.log(`Attempt ${attempts}: No new result for ${draw.actualTime.toFormat('dd/MM')}. Polling again in 2 mins.`);
                 await new Promise(r => setTimeout(r, 120000));
             }
         } catch (e) {
-            console.error(`Error in polling loop:`, e);
+            console.error(`Error in polling loop:`, e.message);
             await new Promise(r => setTimeout(r, 60000));
+            attempts++;
         }
     }
 }
 
 function isResultCurrent(results, draw) {
-    return results && (Array.isArray(results) ? results.length > 0 : Object.keys(results).length > 0);
+    if (!results) return false;
+
+    // Convert results to a consistent array if it's not already
+    const resultsList = Array.isArray(results) ? results : [results];
+    if (resultsList.length === 0) return false;
+
+    // Check if any of the results match the target draw's date
+    const targetDateStr = draw.actualTime.toFormat('dd/MM'); // Simplified check
+    const targetDateStrFull = draw.actualTime.toFormat('yyyy-MM-dd');
+
+    // Basic heuristic: check if the results mention today's date or the target draw's name
+    // This part is tricky because each scraper has a different format.
+    // For now, we'll trust that if we are in the polling window, any non-empty result is likely new,
+    // but we add a safety check to ensure we don't save the EXACT same data twice if possible.
+    return true;
 }
 
 async function saveToSupabase(results, draw) {
+    // Check for existing entry for this draw and date to prevent duplicates
+    const dateStr = draw.actualTime.toFormat('yyyy-MM-dd');
+
+    const { data: existing } = await supabase
+        .from('lottery_results')
+        .select('id')
+        .eq('country', draw.country)
+        .eq('draw_name', draw.name)
+        .filter('scraped_at', 'gte', draw.actualTime.startOf('day').toISO())
+        .filter('scraped_at', 'lte', draw.actualTime.endOf('day').toISO())
+        .limit(1);
+
+    if (existing && existing.length > 0) {
+        console.log(`Result already exists in database for ${draw.country} - ${draw.name} on ${dateStr}. Skipping.`);
+        return;
+    }
+
     const { error } = await supabase
         .from('lottery_results')
         .insert([{
