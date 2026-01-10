@@ -16,6 +16,9 @@ export async function scrapeSuerteNica() {
                     return { drawText: drawText, numbers: numbers };
                 });
                 return { title: title, draws: draws };
+            }).filter(function (game) {
+                const lowerTitle = game.title.toLowerCase();
+                return lowerTitle.includes('diaria') || lowerTitle.includes('premia 2');
             });
         });
 
