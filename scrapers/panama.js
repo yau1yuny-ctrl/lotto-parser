@@ -1,7 +1,7 @@
 ﻿import { chromium } from 'playwright';
 
 export async function scrapePanama() {
-    console.log('Starting official Panama LNB scraper (Final Version)...');
+    console.log('Starting official Panama LNB scraper (Numbers Only version)...');
     const browser = await chromium.launch({ headless: true });
     try {
         const page = await browser.newPage();
@@ -44,17 +44,12 @@ export async function scrapePanama() {
                         const label = labelEl ? labelEl.innerText.trim() : `Premio ${index + 1}`;
                         const number = numberEl.innerText.trim();
 
-                        let prizeObj = { label: label, number: number };
-
-                        // If it's the 1st prize, try to get the letters
-                        if (index === 0) {
-                            const lettersEl = container.querySelector('.primer-premio-details .value');
-                            if (lettersEl) {
-                                prizeObj.letras = lettersEl.innerText.trim();
-                            }
-                        }
-
-                        prizes.push(prizeObj);
+                        // User specifically asked NOT to include letters.
+                        // We only store the numbers for 1st, 2nd, and 3rd prizes.
+                        prizes.push({
+                            label: label,
+                            number: number
+                        });
                     }
                 });
 
