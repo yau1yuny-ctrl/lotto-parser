@@ -1,5 +1,6 @@
 ﻿import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { blockUnnecessaryResources } from '../utils/resource-blocker.js';
 
 // Add stealth plugin to avoid bot detection
 chromium.use(StealthPlugin());
@@ -10,6 +11,9 @@ export async function scrapePanama() {
     try {
         const page = await browser.newPage();
         page.setDefaultTimeout(180000); // 3 minutes
+
+        // Block ads and unnecessary resources
+        await blockUnnecessaryResources(page);
 
         console.log('Navigating to LNB official page...');
 
