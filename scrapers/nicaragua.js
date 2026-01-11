@@ -6,7 +6,27 @@ export async function scrapeSuerteNica() {
     try {
         await page.goto('https://suertenica.com/', { waitUntil: 'networkidle' });
 
-        const results = await page.evaluate(function () {
+        // Get today's date for verification
+        const today = new Date();
+        const todayDay = today.getDate();
+        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const todayMonth = monthNames[today.getMonth()];
+        const todayYear = today.getFullYear();
+
+        const results = await page.evaluate(function (todayDay, todayMonth, todayYear) {
+            // Check if page date matches today
+            const dateElement = document.querySelector('p.suertenica-date strong');
+            if (dateElement) {
+                const dateText = dateElement.innerText;
+                // Format: "Actualizados Domingo 11 de Enero, 2026"
+                if (!dateText.includes(todayDay.toString()) ||
+                    !dateText.includes(todayMonth) ||
+                    !dateText.includes(todayYear.toString())) {
+                    console.log('Nicaragua results are not from today, skipping');
+                    return [];
+                }
+            }
             const allDraws = [];
 
             // Find Diaria section
@@ -106,7 +126,7 @@ export async function scrapeSuerteNica() {
             });
 
             return allDraws;
-        });
+        }, todayDay, todayMonth, todayYear);
 
         return results;
     } catch (error) {
