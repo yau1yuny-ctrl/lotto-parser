@@ -67,12 +67,21 @@ export async function scrapeHonduras() {
         const finalData = [];
         const allTimes = ['11:00 AM', '3:00 PM', '9:00 PM'];
 
-        allTimes.forEach(time => {
-            const d = diaria[time];
-            const p = premia2[time];
-            if (d && p && p.length >= 2) {
+        // Honduras is UTC-6 (CST), Panama is UTC-5 (EST)
+        // Convert Honduras time to Panama time by adding 1 hour
+        const hondurasToPanamaTime = {
+            '11:00 AM': '12:00 PM',
+            '3:00 PM': '4:00 PM',
+            '9:00 PM': '10:00 PM'
+        };
+
+        allTimes.forEach(hondurasTime => {
+            const panamaTime = hondurasToPanamaTime[hondurasTime];
+            const d = diaria[hondurasTime];
+            const p = premia2[hondurasTime];
+            if (d && p && p.length >= 2 && panamaTime) {
                 finalData.push({
-                    time: time,
+                    time: panamaTime,
                     prizes: [d[0], p[0], p[1]]
                 });
             }

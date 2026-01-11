@@ -107,10 +107,18 @@ export async function scrapeCostaRica() {
             });
 
             // Standard Draws (Mediodía, Tarde, Noche)
+            // Costa Rica is UTC-6 (CST), Panama is UTC-5 (EST)
+            // Convert to Panama time by adding 1 hour
+            const timeMapping = {
+                'Mediodía': '2:55 PM',   // 1:55 PM CR -> 2:55 PM Panama
+                'Tarde': '6:30 PM',      // 5:30 PM CR -> 6:30 PM Panama
+                'Noche': '9:30 PM'       // 8:30 PM CR -> 9:30 PM Panama
+            };
+
             draws.forEach(d => {
                 if (raw[d].NT && raw[d].M3) {
                     finalData.push({
-                        time: d,
+                        time: timeMapping[d],
                         prizes: [raw[d].NT, raw[d].M3[0] + raw[d].M3[1], raw[d].M3[1] + raw[d].M3[2]]
                     });
                 }
@@ -134,13 +142,13 @@ export async function scrapeCostaRica() {
             const rule = scheduleRule[dayOfWeek] || 'MONAZO';
 
             if (rule === 'CHANCES' && specialPrizes && specialPrizes.isChances) {
-                finalData.push({ time: '8:30 PM Tica', prizes: specialPrizes.prizes });
+                finalData.push({ time: '9:30 PM', prizes: specialPrizes.prizes });
             } else if (rule === 'NATIONAL' && specialPrizes && specialPrizes.isNational) {
-                finalData.push({ time: '8:30 PM Tica', prizes: specialPrizes.prizes });
+                finalData.push({ time: '9:30 PM', prizes: specialPrizes.prizes });
             } else if (raw.Noche.NT && raw.Noche.M3) {
                 // Fallback / Standard: Use the Monazo Noche composite system
                 finalData.push({
-                    time: '8:30 PM Tica',
+                    time: '9:30 PM',
                     prizes: [raw.Noche.NT, raw.Noche.M3[0] + raw.Noche.M3[1], raw.Noche.M3[1] + raw.Noche.M3[2]]
                 });
             }

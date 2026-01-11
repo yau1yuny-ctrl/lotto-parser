@@ -16,10 +16,34 @@ export async function scrapePanama() {
         const results = await page.evaluate(function () {
             const data = [];
 
+            // Get today's date in Panama timezone
+            const today = new Date();
+            const todayDay = today.getDate();
+            const todayMonth = today.toLocaleString('es-ES', { month: 'long' });
+            const todayYear = today.getFullYear();
+
             // Each draw is in a containerTablero
             const containers = document.querySelectorAll('div.containerTablero');
 
             containers.forEach(container => {
+                // Extract the date from this sorteo
+                const dateEl = container.querySelector('.date');
+                if (!dateEl) return;
+
+                const dateText = dateEl.innerText.trim().replace(/\s+/g, ' ');
+                // Format: "04 de Enero de 2026"
+                const dateParts = dateText.split(' ');
+                if (dateParts.length < 5) return;
+
+                const day = parseInt(dateParts[0]);
+                const month = dateParts[2]; // "Enero", "Febrero", etc.
+                const year = parseInt(dateParts[4]);
+
+                // Only process if this sorteo is from today
+                if (day !== todayDay || month.toLowerCase() !== todayMonth.toLowerCase() || year !== todayYear) {
+                    return; // Skip this sorteo, it's not from today
+                }
+
                 // Identify the draw by the logo image
                 const logoImg = container.querySelector('.sorteo-logo img');
                 let drawName = 'Sorteo Desconocido';
@@ -56,6 +80,7 @@ export async function scrapePanama() {
                 if (prizes.length > 0) {
                     data.push({
                         title: drawName,
+                        date: dateText, // Include the date for reference
                         prizes: prizes
                     });
                 }

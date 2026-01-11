@@ -26,8 +26,34 @@ const SCHEDULE = [
     { country: 'USA', name: 'New York', time: '22:30', closeOffset: -3 },
 ];
 
+async function cleanupOldResults() {
+    console.log('Checking for old results to cleanup...');
+    const now = DateTime.now().setZone('America/Panama');
+    const today = now.toFormat('yyyy-MM-dd');
+
+    try {
+        // Delete all results where draw_date is before today
+        const { data, error } = await supabase
+            .from('lottery_results')
+            .delete()
+            .lt('draw_date', today);
+
+        if (error) {
+            console.error('Error cleaning up old results:', error);
+        } else {
+            console.log(`Cleanup completed. Removed results before ${today}`);
+        }
+    } catch (error) {
+        console.error('Error in cleanup:', error.message);
+    }
+}
+
 async function run() {
     console.log('Lottery Parser Started');
+
+    // Run cleanup at startup (will delete results from previous days)
+    await cleanupOldResults();
+
     while (true) {
         const now = DateTime.now().setZone('America/Panama');
         const nextDraw = getNextDraw(now);
@@ -160,6 +186,7 @@ async function saveToSupabase(results, draw) {
         .insert([{
             country: draw.country,
             draw_name: draw.name,
+            draw_date: dateStr, // Add draw_date for matching
             data: results,
             scraped_at: DateTime.now().setZone('America/Panama').toISO()
         }]);
