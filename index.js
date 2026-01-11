@@ -71,12 +71,6 @@ async function run() {
 
         await pollForResult(nextDraw);
 
-        // If running in GitHub Actions, exit after processing one draw to avoid stacking.
-        if (process.env.GITHUB_ACTIONS) {
-            console.log('Running in CI mode: Exiting after search.');
-            break;
-        }
-
         // After polling finishes (success or timeout), wait a bit before calculating the next draw
         // to ensure we don't pick the same draw again if we finished early.
         await new Promise(r => setTimeout(r, 65000));

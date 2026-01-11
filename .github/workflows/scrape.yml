@@ -2,53 +2,21 @@ name: Lottery Scraper
 
 on:
   schedule:
-    # Dominican Republic - La Primera (11:00 AM) - Run at 11:05 AM
-    - cron: '5 16 * * *'  # 11:05 AM Panama = 16:05 UTC
+    # Block 1: Morning draws (10:50 AM start - covers 11:00 AM to 4:00 PM draws)
+    # Starts 10 min before first draw to avoid skipping
+    - cron: '50 15 * * *'  # 10:50 AM Panama = 15:50 UTC
     
-    # Honduras (12:00 PM) - Run at 12:05 PM
-    - cron: '5 17 * * *'  # 12:05 PM Panama = 17:05 UTC
+    # Block 2: Afternoon draws (4:50 PM start - covers 5:30 PM to 10:00 PM draws)
+    # Starts 40 min before first draw of this block
+    - cron: '50 21 * * *'  # 4:50 PM Panama = 21:50 UTC
     
-    # Nicaragua (1:00 PM) - Run at 1:05 PM
-    - cron: '5 18 * * *'  # 1:05 PM Panama = 18:05 UTC
+    # Block 3: Late night draws (10:50 PM start - covers 11:00 PM to 4:00 AM)
+    # Starts 40 min before first draw of this block
+    - cron: '50 3 * * *'  # 10:50 PM Panama = 03:50 UTC (next day)
     
-    # Costa Rica - Monazo Mediodía (1:55 PM) - Run at 2:00 PM
-    - cron: '0 19 * * *'  # 2:00 PM Panama = 19:00 UTC
-    
-    # USA - New York Midday (2:30 PM) - Run at 2:35 PM
-    - cron: '35 19 * * *'  # 2:35 PM Panama = 19:35 UTC
-    
-    # Panama - Lotería Nacional (3:00 PM Wed/Sun) - Run at 3:05 PM
-    - cron: '5 20 * * 3,0'  # 3:05 PM Panama = 20:05 UTC (Wed=3, Sun=0)
-    
-    # Nicaragua (4:00 PM) - Run at 4:05 PM
-    - cron: '5 21 * * *'  # 4:05 PM Panama = 21:05 UTC
-    
-    # Honduras (4:00 PM) - Run at 4:05 PM
-    # (Same as Nicaragua, will run together)
-    
-    # Costa Rica - Monazo Tarde (5:30 PM) - Run at 5:35 PM
-    - cron: '35 22 * * *'  # 5:35 PM Panama = 22:35 UTC
-    
-    # Dominican Republic - La Primera (6:00 PM) - Run at 6:05 PM
-    - cron: '5 23 * * *'  # 6:05 PM Panama = 23:05 UTC
-    
-    # Nicaragua (7:00 PM) - Run at 7:05 PM
-    - cron: '5 0 * * *'  # 7:05 PM Panama = 00:05 UTC (next day)
-    
-    # Costa Rica - Tica (8:30 PM) - Run at 8:35 PM
-    - cron: '35 1 * * *'  # 8:35 PM Panama = 01:35 UTC (next day)
-    
-    # USA - Florida (9:30 PM) - Run at 9:35 PM
-    - cron: '35 2 * * *'  # 9:35 PM Panama = 02:35 UTC (next day)
-    
-    # Nicaragua (10:00 PM) - Run at 10:05 PM
-    - cron: '5 3 * * *'  # 10:05 PM Panama = 03:05 UTC (next day)
-    
-    # Honduras (10:00 PM) - Run at 10:05 PM
-    # (Same as Nicaragua, will run together)
-    
-    # USA - New York Evening (10:30 PM) - Run at 10:35 PM
-    - cron: '35 3 * * *'  # 10:35 PM Panama = 03:35 UTC (next day)
+    # Block 4: Early morning (4:50 AM start - covers 5:00 AM to 10:00 AM)
+    # Keeps the cycle running 24/7
+    - cron: '50 9 * * *'  # 4:50 AM Panama = 09:50 UTC
     
   workflow_dispatch: # Allows manual trigger
 
