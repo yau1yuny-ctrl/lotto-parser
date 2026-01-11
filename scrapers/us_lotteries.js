@@ -62,7 +62,11 @@ export async function scrapeUSLotteries() {
         console.log('Waiting for content to load...');
         await page.waitForTimeout(7000);
 
-        const results = await page.evaluate(function () {
+        // Get today's date in DD-MM format
+        const today = new Date();
+        const todayStr = String(today.getDate()).padStart(2, '0') + '-' + String(today.getMonth() + 1).padStart(2, '0');
+
+        const results = await page.evaluate(function (todayStr) {
             const data = [];
             const blocks = document.querySelectorAll('.game-block');
 
@@ -74,6 +78,13 @@ export async function scrapeUSLotteries() {
 
                 // We are looking for New York and Florida
                 if (title.includes('New York') || title.includes('Florida')) {
+                    // Check date
+                    const dateEl = block.querySelector('.session-date');
+                    if (dateEl) {
+                        const date = dateEl.innerText.trim();
+                        // Only include today's results
+                        if (date !== todayStr) return;
+                    }
                     // Try to extract numbers from span.score or .session-ball
                     const scoreEls = block.querySelectorAll('.score, .session-ball');
                     const numbers = Array.from(scoreEls).map(s => s.innerText.trim()).filter(n => n.length > 0);
@@ -88,7 +99,7 @@ export async function scrapeUSLotteries() {
             });
 
             return data;
-        });
+        }, todayStr);
 
         // If we're in DST, convert times from EDT to EST (Panama time)
         // Note: The website might not show specific times, but if it does in the future,
