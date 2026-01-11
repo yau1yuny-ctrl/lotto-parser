@@ -2,21 +2,20 @@ name: Lottery Scraper
 
 on:
   schedule:
-    # Block 1: Morning draws (10:50 AM start - covers 11:00 AM to 4:00 PM draws)
+    # Block 1: Morning/Afternoon draws (10:50 AM start - runs until ~4:50 PM)
+    # Covers: 11:00 AM La Primera through 4:00 PM draws
     # Starts 10 min before first draw to avoid skipping
     - cron: '50 15 * * *'  # 10:50 AM Panama = 15:50 UTC
     
-    # Block 2: Afternoon draws (4:50 PM start - covers 5:30 PM to 10:00 PM draws)
+    # Block 2: Evening draws (4:50 PM start - runs until ~10:50 PM)
+    # Covers: 5:30 PM Costa Rica through 10:00 PM draws
     # Starts 40 min before first draw of this block
     - cron: '50 21 * * *'  # 4:50 PM Panama = 21:50 UTC
     
-    # Block 3: Late night draws (10:50 PM start - covers 11:00 PM to 4:00 AM)
-    # Starts 40 min before first draw of this block
-    - cron: '50 3 * * *'  # 10:50 PM Panama = 03:50 UTC (next day)
-    
-    # Block 4: Early morning (4:50 AM start - covers 5:00 AM to 10:00 AM)
-    # Keeps the cycle running 24/7
-    - cron: '50 9 * * *'  # 4:50 AM Panama = 09:50 UTC
+    # Block 3: Late night draws (10:20 PM start - runs until ~4:20 AM)
+    # Covers: 10:30 PM New York through any early morning draws
+    # Starts 10 min before the 10:30 PM draw
+    - cron: '20 3 * * *'  # 10:20 PM Panama = 03:20 UTC (next day)
     
   workflow_dispatch: # Allows manual trigger
 
