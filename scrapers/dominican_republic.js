@@ -1,4 +1,7 @@
-﻿import { chromium } from 'playwright';
+﻿import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+chromium.use(StealthPlugin());
 
 export async function scrapeDominicanRepublic() {
     const browser = await chromium.launch({ headless: true });

@@ -1,4 +1,7 @@
-﻿import { chromium } from 'playwright';
+﻿import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+chromium.use(StealthPlugin());
 
 // Helper function to check if USA is currently in Daylight Saving Time
 function isUSDST() {

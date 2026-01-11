@@ -1,4 +1,8 @@
-﻿import { chromium } from 'playwright';
+﻿import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+
+// Add stealth plugin to avoid bot detection
+chromium.use(StealthPlugin());
 
 export async function scrapePanama() {
     console.log('Starting official Panama LNB scraper (Numbers Only version)...');
