@@ -22,7 +22,7 @@ export async function scrapeSuerteNica() {
         const todayMonth = monthNames[today.getMonth()];
         const todayYear = today.getFullYear();
 
-        const results = await page.evaluate(function (todayDay, todayMonth, todayYear) {
+        const results = await page.evaluate(({ todayDay, todayMonth, todayYear }) => {
             // Check if page date matches today
             const dateElement = document.querySelector('p.suertenica-date strong');
             if (dateElement) {
