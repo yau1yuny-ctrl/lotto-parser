@@ -1,5 +1,6 @@
 ﻿import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { enableAdBlocker } from '../utils/resource-blocker.js';
 
 chromium.use(StealthPlugin());
 
@@ -58,6 +59,9 @@ export async function scrapeUSLotteries() {
     try {
         const page = await browser.newPage();
         page.setDefaultTimeout(120000);
+
+        // Enable Ghostery adblocker
+        await enableAdBlocker(page);
 
         console.log('Navigating to Conectate US lotteries page...');
         await page.goto('https://www.conectate.com.do/loterias/americanas', { waitUntil: 'domcontentloaded', timeout: 90000 });

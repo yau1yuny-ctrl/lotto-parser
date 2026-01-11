@@ -1,11 +1,16 @@
 ﻿import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { enableAdBlocker } from '../utils/resource-blocker.js';
 
 chromium.use(StealthPlugin());
 
 export async function scrapeSuerteNica() {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
+
+    // Enable Ghostery adblocker
+    await enableAdBlocker(page);
+
     try {
         await page.goto('https://suertenica.com/', { waitUntil: 'networkidle' });
 

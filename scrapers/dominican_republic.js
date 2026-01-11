@@ -1,11 +1,15 @@
 ﻿import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { enableAdBlocker } from '../utils/resource-blocker.js';
 
 chromium.use(StealthPlugin());
 
 export async function scrapeDominicanRepublic() {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
+
+    // Enable Ghostery adblocker
+    await enableAdBlocker(page);
 
     try {
         console.log('Starting Dominican Republic scraper - loteriasdominicanas.com');
