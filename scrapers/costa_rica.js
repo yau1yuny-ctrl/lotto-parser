@@ -17,7 +17,7 @@ export async function scrapeCostaRica() {
             String(today.getMonth() + 1).padStart(2, '0') + '-' +
             String(today.getDate()).padStart(2, '0');
 
-        // Extract results
+        // Extract results for all three draws
         const results = await page.evaluate((todayStr) => {
             const findCard = (titleText) => {
                 return Array.from(document.querySelectorAll('.card')).find(card =>
@@ -25,41 +25,51 @@ export async function scrapeCostaRica() {
                 );
             };
 
-            const ticaCard = findCard('TICA DIA REVENTADOS');
-            const monazoCard = findCard('MONAZO TICA DIA');
+            const extractPrizes = (ticaCard, monazoCard, todayStr) => {
+                if (!ticaCard || !monazoCard) return null;
+
+                const ticaDate = ticaCard.querySelector('.card-footer .text-left')?.innerText?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+                const monazoDate = monazoCard.querySelector('.card-footer .text-left')?.innerText?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+                const time = ticaCard.querySelector('.card-footer .text-right')?.innerText?.match(/\d{2}:\d{2}/)?.[0];
+
+                if (ticaDate !== todayStr || monazoDate !== todayStr) return null;
+
+                const ticaNumbers = Array.from(ticaCard.querySelectorAll('.btn-circle')).map(n => n.innerText.trim());
+                const monazoNumbers = Array.from(monazoCard.querySelectorAll('.btn-circle')).map(n => n.innerText.trim());
+
+                const prize1 = ticaNumbers[0];
+                const fullNumber = monazoNumbers[0] || '';
+
+                if (!prize1 || fullNumber.length < 3) return null;
+
+                const prize2 = fullNumber.substring(0, 2);
+                const prize3 = fullNumber.substring(fullNumber.length - 2);
+
+                return {
+                    time: time,
+                    prizes: [prize1, prize2, prize3]
+                };
+            };
 
             const draws = [];
 
-            // Process Tica Día Reventados (Prize 1)
-            if (ticaCard) {
-                const date = ticaCard.querySelector('.card-footer .text-left')?.innerText?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
-                const time = ticaCard.querySelector('.card-footer .text-right')?.innerText?.match(/\d{2}:\d{2}/)?.[0];
+            // Draw 1: 1:55 PM (01:00) - TICA DIA REVENTADOS + MONAZO TICA DIA
+            const ticaDia = findCard('TICA DIA REVENTADOS');
+            const monazoDia = findCard('MONAZO TICA DIA');
+            const draw1 = extractPrizes(ticaDia, monazoDia, todayStr);
+            if (draw1) draws.push(draw1);
 
-                if (date === todayStr) {
-                    const numbers = Array.from(ticaCard.querySelectorAll('.btn-circle')).map(n => n.innerText.trim());
-                    const prize1 = numbers[0];
+            // Draw 2: 5:30 PM (17:30) - TICA REVENTADOS 4:30 + MONAZO TICA 4:30 PM
+            const tica430 = findCard('TICA REVENTADOS 4:30');
+            const monazo430 = findCard('MONAZO TICA 4:30 PM');
+            const draw2 = extractPrizes(tica430, monazo430, todayStr);
+            if (draw2) draws.push(draw2);
 
-                    // Process Monazo Tica Día (Prizes 2 and 3)
-                    if (monazoCard) {
-                        const monazoDate = monazoCard.querySelector('.card-footer .text-left')?.innerText?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
-
-                        if (monazoDate === todayStr) {
-                            const monazoNumbers = Array.from(monazoCard.querySelectorAll('.btn-circle')).map(n => n.innerText.trim());
-                            const fullNumber = monazoNumbers[0] || '';
-
-                            if (fullNumber.length >= 3) {
-                                const prize2 = fullNumber.substring(0, 2);
-                                const prize3 = fullNumber.substring(fullNumber.length - 2);
-
-                                draws.push({
-                                    time: time,
-                                    prizes: [prize1, prize2, prize3]
-                                });
-                            }
-                        }
-                    }
-                }
-            }
+            // Draw 3: 8:30 PM (20:30) - TICA NOCHE REVENTADOS + MONAZO TICA NOCHE
+            const ticaNoche = findCard('TICA NOCHE REVENTADOS');
+            const monazoNoche = findCard('MONAZO TICA NOCHE');
+            const draw3 = extractPrizes(ticaNoche, monazoNoche, todayStr);
+            if (draw3) draws.push(draw3);
 
             return draws;
         }, todayStr);
@@ -68,10 +78,11 @@ export async function scrapeCostaRica() {
 
         // Convert Costa Rica times (UTC-6) to Panama times (UTC-5)
         const timeMap = {
-            '01:00': '2:55 PM',  // Mediodía
+            '01:00': '2:55 PM',  // Mediodía (1:55 PM CR -> 2:55 PM Panama)
             '13:00': '2:55 PM',  // Alternative format
-            '17:30': '6:30 PM',  // Tarde
-            '20:30': '9:30 PM'   // Tica (8:30 PM specific days)
+            '16:30': '5:30 PM',  // Tarde (4:30 PM CR -> 5:30 PM Panama)
+            '17:30': '6:30 PM',  // Alternative
+            '20:30': '9:30 PM'   // Noche (8:30 PM CR -> 9:30 PM Panama)
         };
 
         const convertedResults = results.map(result => ({
