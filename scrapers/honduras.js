@@ -11,60 +11,84 @@ export async function scrapeHonduras() {
         // Wait for results to load
         await page.waitForSelector('.game-block', { timeout: 30000 });
 
-        // Extract Pega 3 results for all three daily draws
-        const results = await page.evaluate(() => {
+        // Get today's date in format DD-MM (e.g., "11-01" for January 11)
+        const today = new Date();
+        const todayStr = String(today.getDate()).padStart(2, '0') + '-' + String(today.getMonth() + 1).padStart(2, '0');
+
+        // Extract results for La Diaria and Premia 2
+        const results = await page.evaluate((todayStr) => {
             const gameBlocks = document.querySelectorAll('.game-block');
-            const allResults = [];
+            const diariaResults = {};
+            const premiaResults = {};
 
             gameBlocks.forEach(block => {
                 const titleEl = block.querySelector('.game-title span');
-                if (!titleEl) return;
+                const dateEl = block.querySelector('.session-date');
+
+                if (!titleEl || !dateEl) return;
 
                 const titleText = titleEl.innerText.trim();
+                const dateText = dateEl.innerText.trim();
 
-                // Only process Pega 3 games
-                if (!titleText.includes('Pega 3')) return;
+                // Only process today's results
+                if (dateText !== todayStr) return;
 
-                // Extract time from title (e.g., "Pega 3 11:00 AM")
+                // Extract time
                 const timeMatch = titleText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
                 if (!timeMatch) return;
+                const time = timeMatch[1].trim();
 
-                const hondurasTime = timeMatch[1].trim();
-
-                // Extract the 3 numbers from .game-scores .score
-                const scoreElements = block.querySelectorAll('.game-scores .score');
+                // Get numbers from .game-scores
+                const scoreElements = block.querySelectorAll('.game-scores .score, .game-scores span');
                 const numbers = Array.from(scoreElements)
                     .map(el => el.innerText.trim())
-                    .filter(num => /^\d{1,2}$/.test(num))
-                    .slice(0, 3);
+                    .filter(num => /^\d+$/.test(num));
 
-                if (numbers.length === 3) {
-                    allResults.push({
-                        hondurasTime,
-                        numbers
-                    });
+                // Process La Diaria (first number only)
+                if (titleText.includes('La Diaria')) {
+                    if (numbers.length > 0) {
+                        diariaResults[time] = numbers[0]; // First number only
+                    }
+                }
+
+                // Process Premia 2 (2 numbers)
+                if (titleText.includes('Premia 2')) {
+                    if (numbers.length >= 2) {
+                        premiaResults[time] = [numbers[0], numbers[1]]; // First 2 numbers
+                    }
                 }
             });
 
-            return allResults;
-        });
+            return { diaria: diariaResults, premia: premiaResults };
+        }, todayStr);
 
         await browser.close();
 
-        // Convert Honduras times (CST, UTC-6) to Panama times (EST, UTC-5)
-        const timeMap = {
-            '11:00 AM': '12:00 PM',
-            '3:00 PM': '4:00 PM',
-            '9:00 PM': '10:00 PM'
-        };
+        // Combine La Diaria + Premia 2 for each time
+        const times = ['11:00 AM', '3:00 PM', '9:00 PM'];
+        const combinedResults = [];
 
-        const convertedResults = results.map(result => ({
-            time: timeMap[result.hondurasTime] || result.hondurasTime,
-            prizes: result.numbers
-        }));
+        times.forEach(hondurasTime => {
+            const diariaNum = results.diaria[hondurasTime];
+            const premiaNum = results.premia[hondurasTime];
 
-        console.log('Honduras scraping completed:', convertedResults);
-        return convertedResults;
+            if (diariaNum && premiaNum && premiaNum.length === 2) {
+                // Convert Honduras time to Panama time
+                const timeMap = {
+                    '11:00 AM': '12:00 PM',
+                    '3:00 PM': '4:00 PM',
+                    '9:00 PM': '10:00 PM'
+                };
+
+                combinedResults.push({
+                    time: timeMap[hondurasTime] || hondurasTime,
+                    prizes: [diariaNum, premiaNum[0], premiaNum[1]]
+                });
+            }
+        });
+
+        console.log('Honduras scraping completed:', combinedResults);
+        return combinedResults;
 
     } catch (error) {
         console.error('Error scraping Honduras:', error);
