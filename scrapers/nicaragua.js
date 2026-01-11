@@ -134,7 +134,7 @@ export async function scrapeSuerteNica() {
             });
 
             return allDraws;
-        }, todayDay, todayMonth, todayYear);
+        }, { todayDay, todayMonth, todayYear });
 
         return results;
     } catch (error) {
