@@ -1,36 +1,32 @@
 ﻿import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { enableAdBlocker } from '../utils/resource-blocker.js';
+import { setRandomUserAgent } from '../utils/user-agent.js';
+import { setupAdvancedInterception } from '../utils/request-interceptor.js';
+import { retryNavigation } from '../utils/retry.js';
 
 // Add stealth plugin to avoid bot detection
 chromium.use(StealthPlugin());
 
 export async function scrapePanama() {
-    console.log('Starting official Panama LNB scraper (Numbers Only version)...');
+    console.log('Starting official Panama LNB scraper (Optimized version)...');
     const browser = await chromium.launch({ headless: true });
     try {
         const page = await browser.newPage();
         page.setDefaultTimeout(180000); // 3 minutes
 
-        // Enable Ghostery adblocker
+        // Apply all optimizations
+        console.log('Applying optimizations...');
+        await setRandomUserAgent(page);
         await enableAdBlocker(page);
+        await setupAdvancedInterception(page);
 
-        console.log('Navigating to LNB official page...');
+        console.log('Navigating to LNB official page with retry logic...');
 
-        // Try up to 3 times with increasing timeouts
-        let loaded = false;
-        for (let attempt = 1; attempt <= 3 && !loaded; attempt++) {
-            try {
-                await page.goto('https://www.lnb.gob.pa/', {
-                    waitUntil: 'domcontentloaded',
-                    timeout: 60000 * attempt // 60s, 120s, 180s
-                });
-                loaded = true;
-            } catch (error) {
-                console.log(`Attempt ${attempt} failed, retrying...`);
-                if (attempt === 3) throw error;
-            }
-        }
+        // Use retry logic for navigation
+        await retryNavigation(page, 'https://www.lnb.gob.pa/', {
+            timeout: 90000
+        });
 
         console.log('Waiting for content...');
         await page.waitForTimeout(10000); // Increased wait time
