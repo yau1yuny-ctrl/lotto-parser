@@ -1,97 +1,74 @@
 import { chromium } from 'playwright';
 
-async function getGameResults(page, url, gameName) {
-    console.log(`Fetching ${gameName} results from ${url}...`);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
-    await page.waitForTimeout(6000);
-
-    // Close modals
-    await page.evaluate(function () {
-        const btns = document.querySelectorAll('.pum-close, #pum-close, .close-modal, .et_social_close');
-        btns.forEach(b => b.click());
-    });
-
-    return await page.evaluate(function (game) {
-        const results = {};
-        const rows = document.querySelectorAll('.Rtable');
-
-        // We only want the results for the latest date shown on the page
-        // Usually the first few rows.
-        rows.forEach(row => {
-            const head = row.querySelector('.Rtable-cell--head');
-            const dataCell = row.querySelector('.Rtable-cell.border-left-td');
-            if (head && dataCell) {
-                const headText = head.innerText.trim();
-                const timeMatch = headText.match(/\d{1,2}:\d{2}\s*(AM|PM)/i);
-
-                if (timeMatch) {
-                    const time = timeMatch[0].toUpperCase();
-                    // If we already have a result for this time, it's likely from an older date
-                    if (results[time]) return;
-
-                    const allDigits = Array.from(dataCell.querySelectorAll('.esferas span'))
-                        .map(s => s.innerText.trim())
-                        .filter(n => n.length > 0 && !isNaN(n));
-
-                    if (game === 'DIARIA') {
-                        // Diaria might show the digit and more info. 
-                        // According to subagent, it's just the digits in spans.
-                        const digits = allDigits.slice(0, 2).join('');
-                        if (digits) results[time] = [digits];
-                    } else if (game === 'PREMIA2') {
-                        const pairs = [];
-                        for (let i = 0; i < allDigits.length; i += 2) {
-                            const pair = allDigits.slice(i, i + 2).join('');
-                            if (pair) pairs.push(pair);
-                            if (pairs.length === 2) break; // We only need the first two pairs
-                        }
-                        if (pairs.length > 0) results[time] = pairs;
-                    }
-                }
-            }
-        });
-        return results;
-    }, gameName);
-}
-
 export async function scrapeHonduras() {
-    console.log('Starting Honduras scraper - Composite Final Attempt...');
     const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+
     try {
-        const page = await browser.newPage();
-        page.setDefaultTimeout(120000);
+        console.log('Starting Honduras scraper - loteriasdehonduras.com');
+        await page.goto('https://loteriasdehonduras.com/', { waitUntil: 'networkidle', timeout: 60000 });
 
-        const diaria = await getGameResults(page, 'https://loto.hn/diaria/', 'DIARIA');
-        const premia2 = await getGameResults(page, 'https://loto.hn/premia2/', 'PREMIA2');
+        // Wait for results to load
+        await page.waitForSelector('.game-block', { timeout: 30000 });
 
-        const finalData = [];
-        const allTimes = ['11:00 AM', '3:00 PM', '9:00 PM'];
+        // Extract Pega 3 results for all three daily draws
+        const results = await page.evaluate(() => {
+            const gameBlocks = document.querySelectorAll('.game-block');
+            const allResults = [];
 
-        // Honduras is UTC-6 (CST), Panama is UTC-5 (EST)
-        // Convert Honduras time to Panama time by adding 1 hour
-        const hondurasToPanamaTime = {
+            gameBlocks.forEach(block => {
+                const titleEl = block.querySelector('.game-title span');
+                if (!titleEl) return;
+
+                const titleText = titleEl.innerText.trim();
+
+                // Only process Pega 3 games
+                if (!titleText.includes('Pega 3')) return;
+
+                // Extract time from title (e.g., "Pega 3 11:00 AM")
+                const timeMatch = titleText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+                if (!timeMatch) return;
+
+                const hondurasTime = timeMatch[1].trim();
+
+                // Extract the 3 numbers from .game-scores .score
+                const scoreElements = block.querySelectorAll('.game-scores .score');
+                const numbers = Array.from(scoreElements)
+                    .map(el => el.innerText.trim())
+                    .filter(num => /^\d{1,2}$/.test(num))
+                    .slice(0, 3);
+
+                if (numbers.length === 3) {
+                    allResults.push({
+                        hondurasTime,
+                        numbers
+                    });
+                }
+            });
+
+            return allResults;
+        });
+
+        await browser.close();
+
+        // Convert Honduras times (CST, UTC-6) to Panama times (EST, UTC-5)
+        const timeMap = {
             '11:00 AM': '12:00 PM',
             '3:00 PM': '4:00 PM',
             '9:00 PM': '10:00 PM'
         };
 
-        allTimes.forEach(hondurasTime => {
-            const panamaTime = hondurasToPanamaTime[hondurasTime];
-            const d = diaria[hondurasTime];
-            const p = premia2[hondurasTime];
-            if (d && p && p.length >= 2 && panamaTime) {
-                finalData.push({
-                    time: panamaTime,
-                    prizes: [d[0], p[0], p[1]]
-                });
-            }
-        });
+        const convertedResults = results.map(result => ({
+            time: timeMap[result.hondurasTime] || result.hondurasTime,
+            prizes: result.numbers
+        }));
 
-        return finalData;
+        console.log('Honduras scraping completed:', convertedResults);
+        return convertedResults;
+
     } catch (error) {
-        console.error('Error in Honduras Scraper:', error.message);
-        return null;
-    } finally {
+        console.error('Error scraping Honduras:', error);
         await browser.close();
+        return [];
     }
 }
