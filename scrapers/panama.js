@@ -5,13 +5,27 @@ export async function scrapePanama() {
     const browser = await chromium.launch({ headless: true });
     try {
         const page = await browser.newPage();
-        page.setDefaultTimeout(120000);
+        page.setDefaultTimeout(180000); // 3 minutes
 
         console.log('Navigating to LNB official page...');
-        await page.goto('https://www.lnb.gob.pa/', { waitUntil: 'domcontentloaded', timeout: 90000 });
+
+        // Try up to 3 times with increasing timeouts
+        let loaded = false;
+        for (let attempt = 1; attempt <= 3 && !loaded; attempt++) {
+            try {
+                await page.goto('https://www.lnb.gob.pa/', {
+                    waitUntil: 'domcontentloaded',
+                    timeout: 60000 * attempt // 60s, 120s, 180s
+                });
+                loaded = true;
+            } catch (error) {
+                console.log(`Attempt ${attempt} failed, retrying...`);
+                if (attempt === 3) throw error;
+            }
+        }
 
         console.log('Waiting for content...');
-        await page.waitForTimeout(7000);
+        await page.waitForTimeout(10000); // Increased wait time
 
         const results = await page.evaluate(function () {
             const data = [];
