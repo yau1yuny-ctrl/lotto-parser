@@ -20,7 +20,7 @@ const SCHEDULE = [
     { country: 'Dominican Republic', name: 'La Primera', time: '18:00', closeOffset: -3 },
     { country: 'Nicaragua', name: 'Nica', time: '19:00', closeOffset: -3 },
     { country: 'Costa Rica', name: 'Tica', time: '20:30', closeOffset: -3 },
-    { country: 'USA', name: 'Florida', time: '21:30', closeOffset: -3 },
+    { country: 'USA', name: 'Florida', time: '21:50', closeOffset: -3 },
     { country: 'Nicaragua', name: 'Nica', time: '22:00', closeOffset: -3 },
     { country: 'Honduras', name: 'Honduras', time: '22:00', closeOffset: -3 },
     { country: 'USA', name: 'New York', time: '22:30', closeOffset: -3 },
