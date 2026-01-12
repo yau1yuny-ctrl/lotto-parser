@@ -1,7 +1,10 @@
-﻿import { chromium } from 'rebrowser-playwright';
+﻿import { chromium } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { enableAdBlocker } from '../utils/resource-blocker.js';
 import { setRandomUserAgent } from '../utils/user-agent.js';
 import { setupAdvancedInterception } from '../utils/request-interceptor.js';
+
+chromium.use(StealthPlugin());
 
 export async function scrapeCostaRica(targetDate = null) {
     console.log('Starting Costa Rica JPS scraper (FINAL - with Lotería Nacional fix)...');
