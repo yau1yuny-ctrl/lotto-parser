@@ -27,7 +27,7 @@ export async function scrapePanama(targetDate = null) {
         const targetMonth = dateToUse.getMonth();
         const targetYear = dateToUse.getFullYear();
 
-        const results = await page.evaluate((day, month, year) => {
+        const results = await page.evaluate(({ day, month, year }) => {
             const data = [];
             const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
                 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -73,7 +73,7 @@ export async function scrapePanama(targetDate = null) {
             });
 
             return data;
-        }, targetDay, targetMonth, targetYear);
+        }, { day: targetDay, month: targetMonth, year: targetYear });
 
         await browser.close();
         return results;

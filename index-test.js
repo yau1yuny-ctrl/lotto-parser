@@ -166,27 +166,9 @@ async function runTestScrapers() {
     console.log('='.repeat(60));
     console.log('');
 
-    if (allResults.length > 0) {
-        console.log('Saving to Supabase...');
-        try {
-            const { data, error } = await supabase
-                .from('lottery_results')
-                .upsert(allResults, {
-                    onConflict: 'country,draw_date,draw_time'
-                });
-
-            if (error) {
-                console.error('❌ Supabase error:', error);
-            } else {
-                console.log('✅ Results saved to Supabase successfully!');
-            }
-        } catch (e) {
-            console.error('❌ Error saving to Supabase:', e.message);
-        }
-    } else {
-        console.log('⚠️  No results to save');
-    }
-
+    // Note: Not saving to Supabase in test mode
+    // Results are displayed above for verification
+    console.log('✅ Test completed! Results displayed above.');
     console.log('');
     console.log('Test scraper completed!');
 }
