@@ -1,0 +1,37 @@
+name: Lottery Scraper - Night Block
+
+on:
+  schedule:
+    # 10:20 PM Panama = 03:20 UTC (next day)
+    # Covers: 11:30 PM draw
+    - cron: '20 3 * * *'
+    
+  workflow_dispatch: # Manual execution
+
+concurrency:
+  group: lottery-scraper-night
+  cancel-in-progress: true
+
+jobs:
+  scrape-night:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Install Playwright Browsers
+        run: PLAYWRIGHT_BROWSERS_PATH=$HOME/pw-browsers npx playwright install --with-deps chromium
+
+      - name: Run Night Scraper
+        run: node scrape-night.js
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /home/runner/pw-browsers
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}

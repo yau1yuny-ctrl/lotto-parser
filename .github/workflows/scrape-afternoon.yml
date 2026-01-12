@@ -1,0 +1,37 @@
+name: Lottery Scraper - Afternoon Block
+
+on:
+  schedule:
+    # 4:50 PM Panama = 21:50 UTC
+    # Covers: 5:30 PM through 10:00 PM draws
+    - cron: '50 21 * * *'
+    
+  workflow_dispatch: # Manual execution
+
+concurrency:
+  group: lottery-scraper-afternoon
+  cancel-in-progress: true
+
+jobs:
+  scrape-afternoon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Install Playwright Browsers
+        run: PLAYWRIGHT_BROWSERS_PATH=$HOME/pw-browsers npx playwright install --with-deps chromium
+
+      - name: Run Afternoon Scraper
+        run: node scrape-afternoon.js
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /home/runner/pw-browsers
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
