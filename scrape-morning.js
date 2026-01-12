@@ -8,13 +8,44 @@ import { scrapeUSLotteries } from './scrapers/us_lotteries.js';
 import { DateTime } from 'luxon';
 
 console.log('='.repeat(60));
-console.log('LOTTERY SCRAPER - MORNING BLOCK (immediate save)');
+console.log('LOTTERY SCRAPER - MORNING BLOCK (wait until draw time)');
 console.log('Time: 10:50 AM - 4:50 PM Panama');
 console.log('='.repeat(60));
 console.log('');
 
 async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitUntilDrawTime(drawTime) {
+    const now = DateTime.now().setZone('America/Panama');
+    const [hour, minute] = drawTime.split(':');
+    const period = drawTime.includes('PM') ? 'PM' : 'AM';
+
+    let targetHour = parseInt(hour);
+    if (period === 'PM' && targetHour !== 12) targetHour += 12;
+    if (period === 'AM' && targetHour === 12) targetHour = 0;
+
+    let target = now.set({
+        hour: targetHour,
+        minute: parseInt(minute.replace(/[^\d]/g, '')),
+        second: 0,
+        millisecond: 0
+    });
+
+    // If target time has passed, it's for tomorrow (shouldn't happen in normal operation)
+    if (target < now) {
+        target = target.plus({ days: 1 });
+    }
+
+    const waitMs = target.diff(now).milliseconds;
+
+    if (waitMs > 0) {
+        const waitMinutes = Math.round(waitMs / 60000);
+        console.log(`⏰ Waiting ${waitMinutes} minutes until ${drawTime}...`);
+        await sleep(waitMs);
+        console.log(`✅ It's ${drawTime} - starting search now!`);
+    }
 }
 
 async function saveToSupabase(country, drawName, time, numbers, date) {
@@ -96,10 +127,12 @@ async function scrapeMorningDraws() {
 
     console.log(`Running morning scraper for: ${today}`);
     console.log(`Day of week: ${dayOfWeek} (${now.toFormat('cccc')})`);
+    console.log(`Started at: ${now.toFormat('HH:mm')}`);
     console.log('');
 
     // 11:00 AM - Dominican Republic (La Primera Día)
     console.log('🇩🇴 Dominican Republic (11:00 AM)');
+    await waitUntilDrawTime('11:00 AM');
     await scrapeWithRetry(
         () => scrapeDominicanRepublic(),
         (results) => results?.find(r => r.name.includes('Día')),
@@ -116,6 +149,7 @@ async function scrapeMorningDraws() {
 
     // 12:00 PM - Honduras
     console.log('🇭🇳 Honduras (12:00 PM)');
+    await waitUntilDrawTime('12:00 PM');
     await scrapeWithRetry(
         () => scrapeHonduras(),
         (results) => results?.find(r => r.time === '12:00 PM'),
@@ -132,6 +166,7 @@ async function scrapeMorningDraws() {
 
     // 1:00 PM - Nicaragua
     console.log('🇳🇮 Nicaragua (1:00 PM)');
+    await waitUntilDrawTime('1:00 PM');
     await scrapeWithRetry(
         () => scrapeSuerteNica(),
         (results) => results?.find(r => r.time === '1:00 PM'),
@@ -148,6 +183,7 @@ async function scrapeMorningDraws() {
 
     // 2:55 PM - Costa Rica (Mediodía)
     console.log('🇨🇷 Costa Rica (2:55 PM)');
+    await waitUntilDrawTime('2:55 PM');
     await scrapeWithRetry(
         () => scrapeCostaRica(),
         (results) => results?.find(r => r.time === '2:55 PM'),
@@ -164,6 +200,7 @@ async function scrapeMorningDraws() {
 
     // 3:30 PM - USA (New York)
     console.log('🇺🇸 USA (3:30 PM)');
+    await waitUntilDrawTime('3:30 PM');
     await scrapeWithRetry(
         () => scrapeUSLotteries(),
         (results) => results?.find(r => r.title.includes('New York 3:30')),
@@ -181,6 +218,7 @@ async function scrapeMorningDraws() {
     // 3:30 PM - Panama (Miércoles=3 y Domingo=7)
     if (dayOfWeek === 3 || dayOfWeek === 7) {
         console.log('🇵🇦 Panama (3:30 PM - Wednesday/Sunday)');
+        await waitUntilDrawTime('3:30 PM');
         await scrapeWithRetry(
             () => scrapePanama(),
             (results) => results && results.length > 0 ? results[0] : null,
@@ -198,8 +236,9 @@ async function scrapeMorningDraws() {
         console.log('⏭️  Panama: Not Wednesday or Sunday, skipping');
     }
 
-    // 4:00 PM - Nicaragua + Honduras (PARALLEL with immediate save)
+    // 4:00 PM - Nicaragua + Honduras (PARALLEL - both wait until 4:00 PM)
     console.log('⏰ 4:00 PM - Nicaragua + Honduras (parallel)');
+    await waitUntilDrawTime('4:00 PM');
     await Promise.all([
         scrapeWithRetry(
             () => scrapeSuerteNica(),

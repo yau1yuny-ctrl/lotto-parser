@@ -3,13 +3,43 @@ import { scrapeUSLotteries } from './scrapers/us_lotteries.js';
 import { DateTime } from 'luxon';
 
 console.log('='.repeat(60));
-console.log('LOTTERY SCRAPER - NIGHT BLOCK (immediate save)');
+console.log('LOTTERY SCRAPER - NIGHT BLOCK (wait until draw time)');
 console.log('Time: 10:20 PM - 12:30 AM Panama');
 console.log('='.repeat(60));
 console.log('');
 
 async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitUntilDrawTime(drawTime) {
+    const now = DateTime.now().setZone('America/Panama');
+    const [hour, minute] = drawTime.split(':');
+    const period = drawTime.includes('PM') ? 'PM' : 'AM';
+
+    let targetHour = parseInt(hour);
+    if (period === 'PM' && targetHour !== 12) targetHour += 12;
+    if (period === 'AM' && targetHour === 12) targetHour = 0;
+
+    let target = now.set({
+        hour: targetHour,
+        minute: parseInt(minute.replace(/[^\d]/g, '')),
+        second: 0,
+        millisecond: 0
+    });
+
+    if (target < now) {
+        target = target.plus({ days: 1 });
+    }
+
+    const waitMs = target.diff(now).milliseconds;
+
+    if (waitMs > 0) {
+        const waitMinutes = Math.round(waitMs / 60000);
+        console.log(`⏰ Waiting ${waitMinutes} minutes until ${drawTime}...`);
+        await sleep(waitMs);
+        console.log(`✅ It's ${drawTime} - starting search now!`);
+    }
 }
 
 async function saveToSupabase(country, drawName, time, numbers, date) {
@@ -92,10 +122,12 @@ async function scrapeNightDraws() {
     const today = now.toFormat('yyyy-MM-dd');
 
     console.log(`Running night scraper for: ${today}`);
+    console.log(`Started at: ${now.toFormat('HH:mm')}`);
     console.log('');
 
-    // 11:30 PM - USA (New York) with immediate save
-    console.log('🇺🇸 Scraping USA (11:30 PM)...');
+    // 11:30 PM - USA (New York) - wait until draw time
+    console.log('🇺🇸 USA (11:30 PM)');
+    await waitUntilDrawTime('11:30 PM');
     await scrapeWithRetry(
         () => scrapeUSLotteries(),
         (results) => results?.find(r => r.title.includes('New York 11:30')),

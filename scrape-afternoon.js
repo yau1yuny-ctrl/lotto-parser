@@ -7,13 +7,43 @@ import { scrapeUSLotteries } from './scrapers/us_lotteries.js';
 import { DateTime } from 'luxon';
 
 console.log('='.repeat(60));
-console.log('LOTTERY SCRAPER - AFTERNOON BLOCK (immediate save)');
+console.log('LOTTERY SCRAPER - AFTERNOON BLOCK (wait until draw time)');
 console.log('Time: 4:50 PM - 10:50 PM Panama');
 console.log('='.repeat(60));
 console.log('');
 
 async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitUntilDrawTime(drawTime) {
+    const now = DateTime.now().setZone('America/Panama');
+    const [hour, minute] = drawTime.split(':');
+    const period = drawTime.includes('PM') ? 'PM' : 'AM';
+
+    let targetHour = parseInt(hour);
+    if (period === 'PM' && targetHour !== 12) targetHour += 12;
+    if (period === 'AM' && targetHour === 12) targetHour = 0;
+
+    let target = now.set({
+        hour: targetHour,
+        minute: parseInt(minute.replace(/[^\d]/g, '')),
+        second: 0,
+        millisecond: 0
+    });
+
+    if (target < now) {
+        target = target.plus({ days: 1 });
+    }
+
+    const waitMs = target.diff(now).milliseconds;
+
+    if (waitMs > 0) {
+        const waitMinutes = Math.round(waitMs / 60000);
+        console.log(`⏰ Waiting ${waitMinutes} minutes until ${drawTime}...`);
+        await sleep(waitMs);
+        console.log(`✅ It's ${drawTime} - starting search now!`);
+    }
 }
 
 async function saveToSupabase(country, drawName, time, numbers, date) {
@@ -58,7 +88,6 @@ async function scrapeWithRetry(scrapeFn, filterFn, name, saveData, maxAttempts =
             if (result) {
                 console.log(`  ✅ Found!`);
 
-                // Save immediately to Supabase
                 await saveToSupabase(
                     saveData.country,
                     saveData.drawName,
@@ -93,10 +122,12 @@ async function scrapeAfternoonDraws() {
     const today = now.toFormat('yyyy-MM-dd');
 
     console.log(`Running afternoon scraper for: ${today}`);
+    console.log(`Started at: ${now.toFormat('HH:mm')}`);
     console.log('');
 
     // 5:30 PM - Costa Rica (Tarde)
     console.log('🇨🇷 Costa Rica (5:30 PM)');
+    await waitUntilDrawTime('5:30 PM');
     await scrapeWithRetry(
         () => scrapeCostaRica(),
         (results) => results?.find(r => r.time === '5:30 PM'),
@@ -111,8 +142,9 @@ async function scrapeAfternoonDraws() {
         15
     );
 
-    // 7:00 PM - Dominican Republic + Nicaragua (PARALLEL with immediate save)
+    // 7:00 PM - Dominican Republic + Nicaragua (PARALLEL)
     console.log('⏰ 7:00 PM - Dominican Republic + Nicaragua (parallel)');
+    await waitUntilDrawTime('7:00 PM');
     await Promise.all([
         scrapeWithRetry(
             () => scrapeDominicanRepublic(),
@@ -144,6 +176,7 @@ async function scrapeAfternoonDraws() {
 
     // 8:30 PM - Costa Rica (Noche)
     console.log('🇨🇷 Costa Rica (8:30 PM)');
+    await waitUntilDrawTime('8:30 PM');
     await scrapeWithRetry(
         () => scrapeCostaRica(),
         (results) => results?.find(r => r.time === '8:30 PM'),
@@ -160,6 +193,7 @@ async function scrapeAfternoonDraws() {
 
     // 9:50 PM - USA (Florida Noche)
     console.log('🇺🇸 USA (9:50 PM)');
+    await waitUntilDrawTime('9:50 PM');
     await scrapeWithRetry(
         () => scrapeUSLotteries(),
         (results) => results?.find(r => r.title.includes('Florida Noche')),
@@ -174,8 +208,9 @@ async function scrapeAfternoonDraws() {
         15
     );
 
-    // 10:00 PM - Nicaragua + Honduras (PARALLEL with immediate save)
+    // 10:00 PM - Nicaragua + Honduras (PARALLEL)
     console.log('⏰ 10:00 PM - Nicaragua + Honduras (parallel)');
+    await waitUntilDrawTime('10:00 PM');
     await Promise.all([
         scrapeWithRetry(
             () => scrapeSuerteNica(),
