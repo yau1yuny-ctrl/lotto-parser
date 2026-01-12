@@ -23,7 +23,7 @@ export async function scrapeDominicanRepublic(targetDate = null) {
         await page.waitForSelector('.game-block', { timeout: 45000 });
 
         // Get target date in DD-MM format
-        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        const dateToUse = targetDate ? new Date(targetDate + 'T12:00:00') : new Date();
         const todayStr = String(dateToUse.getDate()).padStart(2, '0') + '-' + String(dateToUse.getMonth() + 1).padStart(2, '0');
 
         // Extract La Primera results

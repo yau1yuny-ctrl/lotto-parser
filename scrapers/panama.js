@@ -22,7 +22,8 @@ export async function scrapePanama(targetDate = null) {
 
         await page.waitForTimeout(10000);
 
-        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        // Get target date for verification
+        const dateToUse = targetDate ? new Date(targetDate + 'T12:00:00') : new Date();
         const targetDay = dateToUse.getDate();
         const targetMonth = dateToUse.getMonth();
         const targetYear = dateToUse.getFullYear();

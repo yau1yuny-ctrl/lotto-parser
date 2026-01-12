@@ -22,8 +22,8 @@ export async function scrapeHonduras(targetDate = null) {
         // Wait for results to load
         await page.waitForSelector('.game-block', { timeout: 30000 });
 
-        // Get today's date in format DD-MM (e.g., "11-01" for January 11)
-        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        // Get target date for verification
+        const dateToUse = targetDate ? new Date(targetDate + 'T12:00:00') : new Date();
         const todayStr = String(dateToUse.getDate()).padStart(2, '0') + '-' + String(dateToUse.getMonth() + 1).padStart(2, '0');
 
         // Extract results for La Diaria and Premia 2

@@ -19,7 +19,7 @@ export async function scrapeSuerteNica(targetDate = null) {
         await page.goto('https://suertenica.com/', { waitUntil: 'networkidle' });
 
         // Get target date for verification (use provided date or today)
-        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        const dateToUse = targetDate ? new Date(targetDate + 'T12:00:00') : new Date();
         const todayDay = dateToUse.getDate();
         const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
