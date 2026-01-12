@@ -55,7 +55,7 @@ function convertEDTtoEST(edtTime) {
     return `${displayHours}:${minutes} ${newPeriod}`;
 }
 
-export async function scrapeUSLotteries() {
+export async function scrapeUSLotteries(targetDate = null) {
     console.log('Starting US Lotteries scraper (Verified selectors)...');
     const browser = await chromium.launch({ headless: true });
     try {
@@ -73,9 +73,9 @@ export async function scrapeUSLotteries() {
         console.log('Waiting for content to load...');
         await page.waitForTimeout(7000);
 
-        // Get today's date in DD-MM format
-        const today = new Date();
-        const todayStr = String(today.getDate()).padStart(2, '0') + '-' + String(today.getMonth() + 1).padStart(2, '0');
+        // Get target date in DD-MM format
+        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        const todayStr = String(dateToUse.getDate()).padStart(2, '0') + '-' + String(dateToUse.getMonth() + 1).padStart(2, '0');
 
         const results = await page.evaluate(function (todayStr) {
             const data = [];

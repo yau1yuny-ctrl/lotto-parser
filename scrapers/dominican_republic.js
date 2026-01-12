@@ -6,7 +6,7 @@ import { setupAdvancedInterception } from '../utils/request-interceptor.js';
 
 chromium.use(StealthPlugin());
 
-export async function scrapeDominicanRepublic() {
+export async function scrapeDominicanRepublic(targetDate = null) {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
 
@@ -22,9 +22,9 @@ export async function scrapeDominicanRepublic() {
         // Wait for game blocks to load
         await page.waitForSelector('.game-block', { timeout: 45000 });
 
-        // Get today's date in DD-MM format
-        const today = new Date();
-        const todayStr = String(today.getDate()).padStart(2, '0') + '-' + String(today.getMonth() + 1).padStart(2, '0');
+        // Get target date in DD-MM format
+        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        const todayStr = String(dateToUse.getDate()).padStart(2, '0') + '-' + String(dateToUse.getMonth() + 1).padStart(2, '0');
 
         // Extract La Primera results
         const results = await page.evaluate((todayStr) => {

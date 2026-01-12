@@ -25,7 +25,7 @@ async function runTestScrapers() {
     // Nicaragua
     console.log('🇳🇮 Scraping Nicaragua...');
     try {
-        const nicaResults = await scrapeSuerteNica();
+        const nicaResults = await scrapeSuerteNica(testDate);
         if (nicaResults && nicaResults.length > 0) {
             console.log(`✅ Nicaragua: ${nicaResults.length} draws found`);
             nicaResults.forEach(r => {
@@ -48,7 +48,7 @@ async function runTestScrapers() {
     // Honduras
     console.log('🇭🇳 Scraping Honduras...');
     try {
-        const hondurasResults = await scrapeHonduras();
+        const hondurasResults = await scrapeHonduras(testDate);
         if (hondurasResults && hondurasResults.length > 0) {
             console.log(`✅ Honduras: ${hondurasResults.length} draws found`);
             hondurasResults.forEach(r => {
@@ -71,7 +71,7 @@ async function runTestScrapers() {
     // Costa Rica
     console.log('🇨🇷 Scraping Costa Rica...');
     try {
-        const costaRicaResults = await scrapeCostaRica();
+        const costaRicaResults = await scrapeCostaRica(testDate);
         if (costaRicaResults && costaRicaResults.length > 0) {
             console.log(`✅ Costa Rica: ${costaRicaResults.length} draws found`);
             costaRicaResults.forEach(r => {
@@ -94,7 +94,7 @@ async function runTestScrapers() {
     // Panama
     console.log('🇵🇦 Scraping Panama...');
     try {
-        const panamaResults = await scrapePanama();
+        const panamaResults = await scrapePanama(testDate);
         if (panamaResults && panamaResults.length > 0) {
             console.log(`✅ Panama: ${panamaResults.length} draws found`);
             panamaResults.forEach(r => {
@@ -117,7 +117,7 @@ async function runTestScrapers() {
     // Dominican Republic
     console.log('🇩🇴 Scraping Dominican Republic...');
     try {
-        const domResults = await scrapeDominicanRepublic();
+        const domResults = await scrapeDominicanRepublic(testDate);
         if (domResults && domResults.length > 0) {
             console.log(`✅ Dominican Republic: ${domResults.length} draws found`);
             domResults.forEach(r => {
@@ -140,7 +140,7 @@ async function runTestScrapers() {
     // USA
     console.log('🇺🇸 Scraping USA...');
     try {
-        const usaResults = await scrapeUSLotteries();
+        const usaResults = await scrapeUSLotteries(testDate);
         if (usaResults && usaResults.length > 0) {
             console.log(`✅ USA: ${usaResults.length} draws found`);
             usaResults.forEach(r => {

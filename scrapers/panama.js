@@ -6,7 +6,7 @@ import { setRandomUserAgent } from '../utils/user-agent.js';
 // Add stealth plugin
 chromium.use(StealthPlugin());
 
-export async function scrapePanama() {
+export async function scrapePanama(targetDate = null) {
     console.log('Starting Panama LNB scraper (FINAL WORKING VERSION)...');
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
@@ -22,14 +22,18 @@ export async function scrapePanama() {
 
         await page.waitForTimeout(10000);
 
-        const results = await page.evaluate(() => {
+        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        const targetDay = dateToUse.getDate();
+        const targetMonth = dateToUse.getMonth();
+        const targetYear = dateToUse.getFullYear();
+
+        const results = await page.evaluate((day, month, year) => {
             const data = [];
-            const today = new Date();
-            const todayDay = today.getDate();
             const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
                 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-            const todayMonth = monthNames[today.getMonth()];
-            const todayYear = today.getFullYear();
+            const todayDay = day;
+            const todayMonth = monthNames[month];
+            const todayYear = year;
 
             const containers = document.querySelectorAll('div.containerTablero');
 
@@ -69,7 +73,7 @@ export async function scrapePanama() {
             });
 
             return data;
-        });
+        }, targetDay, targetMonth, targetYear);
 
         await browser.close();
         return results;

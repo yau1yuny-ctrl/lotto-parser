@@ -6,7 +6,7 @@ import { setupAdvancedInterception } from '../utils/request-interceptor.js';
 
 chromium.use(StealthPlugin());
 
-export async function scrapeSuerteNica() {
+export async function scrapeSuerteNica(targetDate = null) {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
 
@@ -18,13 +18,13 @@ export async function scrapeSuerteNica() {
     try {
         await page.goto('https://suertenica.com/', { waitUntil: 'networkidle' });
 
-        // Get today's date for verification
-        const today = new Date();
-        const todayDay = today.getDate();
+        // Get target date for verification (use provided date or today)
+        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        const todayDay = dateToUse.getDate();
         const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-        const todayMonth = monthNames[today.getMonth()];
-        const todayYear = today.getFullYear();
+        const todayMonth = monthNames[dateToUse.getMonth()];
+        const todayYear = dateToUse.getFullYear();
 
         const results = await page.evaluate(({ todayDay, todayMonth, todayYear }) => {
             // Check if page date matches today

@@ -3,7 +3,7 @@ import { enableAdBlocker } from '../utils/resource-blocker.js';
 import { setRandomUserAgent } from '../utils/user-agent.js';
 import { setupAdvancedInterception } from '../utils/request-interceptor.js';
 
-export async function scrapeCostaRica() {
+export async function scrapeCostaRica(targetDate = null) {
     console.log('Starting Costa Rica JPS scraper (FINAL - with Lotería Nacional fix)...');
     const browser = await chromium.launch({
         headless: true,
@@ -21,12 +21,12 @@ export async function scrapeCostaRica() {
         await enableAdBlocker(page);
         await setupAdvancedInterception(page);
 
-        // Get today's date and check if Sunday
-        const today = new Date();
-        const isSunday = today.getDay() === 0;
-        const todayStr = today.getFullYear() + '-' +
-            String(today.getMonth() + 1).padStart(2, '0') + '-' +
-            String(today.getDate()).padStart(2, '0');
+        // Get target date and check if Sunday
+        const dateToUse = targetDate ? new Date(targetDate) : new Date();
+        const isSunday = dateToUse.getDay() === 0;
+        const todayStr = dateToUse.getFullYear() + '-' +
+            String(dateToUse.getMonth() + 1).padStart(2, '0') + '-' +
+            String(dateToUse.getDate()).padStart(2, '0');
 
         console.log('Looking for results from:', todayStr);
         console.log('Is Sunday:', isSunday);
