@@ -14,18 +14,16 @@ jobs:
         with:
           node-version: '20'
       
-      - name: Set browser path
-        run: echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/pw-browsers" >> $GITHUB_ENV
-      
       - name: Install dependencies
         run: npm install
         
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
+        run: PLAYWRIGHT_BROWSERS_PATH=$HOME/pw-browsers npx playwright install --with-deps chromium
 
       - name: Run Test Scraper (No Date Validation)
         run: node index-test.js
         env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ env.HOME }}/pw-browsers
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           TEST_MODE: true
