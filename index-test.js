@@ -5,19 +5,19 @@ import { scrapeHonduras } from './scrapers/honduras.js';
 import { scrapeCostaRica } from './scrapers/costa_rica.js';
 import { scrapeDominicanRepublic } from './scrapers/dominican_republic.js';
 import { scrapeUSLotteries } from './scrapers/us_lotteries.js';
-import { DateTime } from 'luxon';
 
 console.log('='.repeat(60));
-console.log('LOTTERY SCRAPER - TEST MODE (No Date Validation)');
+console.log('LOTTERY SCRAPER - TEST MODE (Specific Date: 2026-01-11)');
 console.log('='.repeat(60));
 console.log('');
 
 async function runTestScrapers() {
-    const now = DateTime.now().setZone('America/Panama');
-    const today = now.toFormat('yyyy-MM-dd');
+    // Use specific test date: January 11, 2026
+    const testDate = '2026-01-11';
 
-    console.log(`Test run started at: ${now.toFormat('yyyy-MM-dd HH:mm:ss')} Panama time`);
-    console.log('Fetching ALL available results (no date validation)');
+    console.log(`Test run for date: ${testDate}`);
+    console.log('Fetching ALL results from this date (all times)');
+    console.log('Note: Scrapers still validate date internally, but get all draws from that day');
     console.log('');
 
     const allResults = [];
@@ -32,7 +32,7 @@ async function runTestScrapers() {
                 console.log(`   ${r.time}: ${r.prizes.join(', ')}`);
                 allResults.push({
                     country: 'Nicaragua',
-                    draw_date: today,
+                    draw_date: testDate,
                     draw_time: r.time,
                     numbers: r.prizes
                 });
@@ -55,7 +55,7 @@ async function runTestScrapers() {
                 console.log(`   ${r.time}: ${r.prizes.join(', ')}`);
                 allResults.push({
                     country: 'Honduras',
-                    draw_date: today,
+                    draw_date: testDate,
                     draw_time: r.time,
                     numbers: r.prizes
                 });
@@ -78,7 +78,7 @@ async function runTestScrapers() {
                 console.log(`   ${r.time}: ${r.prizes.join(', ')}`);
                 allResults.push({
                     country: 'Costa Rica',
-                    draw_date: today,
+                    draw_date: testDate,
                     draw_time: r.time,
                     numbers: r.prizes
                 });
@@ -101,7 +101,7 @@ async function runTestScrapers() {
                 console.log(`   ${r.time}: ${r.prizes.join(', ')}`);
                 allResults.push({
                     country: 'Panama',
-                    draw_date: today,
+                    draw_date: testDate,
                     draw_time: r.time,
                     numbers: r.prizes
                 });
@@ -124,7 +124,7 @@ async function runTestScrapers() {
                 console.log(`   ${r.hour}: ${r.numbers.join(', ')}`);
                 allResults.push({
                     country: 'Dominican Republic',
-                    draw_date: today,
+                    draw_date: testDate,
                     draw_time: r.hour,
                     numbers: r.numbers
                 });
@@ -147,7 +147,7 @@ async function runTestScrapers() {
                 console.log(`   ${r.title}: ${r.prizes.join(', ')}`);
                 allResults.push({
                     country: 'USA',
-                    draw_date: today,
+                    draw_date: testDate,
                     draw_time: r.title,
                     numbers: r.prizes
                 });
@@ -162,7 +162,7 @@ async function runTestScrapers() {
 
     // Save to Supabase
     console.log('='.repeat(60));
-    console.log(`TOTAL RESULTS: ${allResults.length} draws`);
+    console.log(`TOTAL RESULTS: ${allResults.length} draws from ${testDate}`);
     console.log('='.repeat(60));
     console.log('');
 
