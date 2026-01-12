@@ -23,7 +23,7 @@ jobs:
       - name: Run Test Scraper (No Date Validation)
         run: node index-test.js
         env:
-          PLAYWRIGHT_BROWSERS_PATH: ${{ env.HOME }}/pw-browsers
+          PLAYWRIGHT_BROWSERS_PATH: /home/runner/pw-browsers
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           TEST_MODE: true

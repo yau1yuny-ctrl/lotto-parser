@@ -43,6 +43,6 @@ jobs:
       - name: Run Scraper
         run: node index.js
         env:
-          PLAYWRIGHT_BROWSERS_PATH: ${{ env.HOME }}/pw-browsers
+          PLAYWRIGHT_BROWSERS_PATH: /home/runner/pw-browsers
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
