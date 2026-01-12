@@ -47,15 +47,18 @@ async function waitUntilDrawTime(drawTime) {
 
 async function saveToSupabase(country, drawName, time, numbers, date) {
     try {
+        // Use upsert to replace if exists (based on country + draw_name + draw_date)
         const { error } = await supabase
             .from('lottery_results')
-            .insert([{
+            .upsert([{
                 country: country,
                 draw_name: drawName,
                 draw_date: date,
                 data: [{ time: time, numbers: numbers }],
                 scraped_at: new Date().toISOString()
-            }]);
+            }], {
+                onConflict: 'country,draw_name,draw_date'  // Unique constraint
+            });
 
         if (error) {
             console.error(`❌ Supabase error:`, error);
