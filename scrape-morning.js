@@ -19,27 +19,33 @@ async function sleep(ms) {
 
 async function waitUntilDrawTime(drawTime) {
     const now = DateTime.now().setZone('America/Panama');
-    const [hour, minute] = drawTime.split(':');
+    const [hourStr, minuteStr] = drawTime.split(':');
     const period = drawTime.includes('PM') ? 'PM' : 'AM';
 
-    let targetHour = parseInt(hour);
+    let targetHour = parseInt(hourStr);
     if (period === 'PM' && targetHour !== 12) targetHour += 12;
     if (period === 'AM' && targetHour === 12) targetHour = 0;
 
-    let target = now.set({
-        hour: targetHour,
-        minute: parseInt(minute.replace(/[^\d]/g, '')),
-        second: 0,
-        millisecond: 0
-    });
+    const targetMinute = parseInt(minuteStr.replace(/[^\d]/g, ''));
 
-    const waitMs = target.diff(now).milliseconds;
+    // Create target time for today
+    const target = DateTime.now()
+        .setZone('America/Panama')
+        .set({
+            hour: targetHour,
+            minute: targetMinute,
+            second: 0,
+            millisecond: 0
+        });
 
-    // Only wait if the time hasn't passed yet
-    if (waitMs > 0) {
-        const waitMinutes = Math.round(waitMs / 60000);
+    // Calculate difference in milliseconds
+    const diffMs = target.diff(now).milliseconds;
+
+    // Only wait if the time is in the future
+    if (diffMs > 60000) { // More than 1 minute in the future
+        const waitMinutes = Math.round(diffMs / 60000);
         console.log(`⏰ Waiting ${waitMinutes} minutes until ${drawTime}...`);
-        await sleep(waitMs);
+        await sleep(diffMs);
         console.log(`✅ It's ${drawTime} - starting search now!`);
     } else {
         console.log(`✅ ${drawTime} already passed - starting search immediately!`);
