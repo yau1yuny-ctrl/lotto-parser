@@ -79,14 +79,23 @@ async function scrapeAfternoonDraws() {
         });
     }
 
-    // 7:00 PM - Dominican Republic (La Primera Noche)
-    console.log('🇩🇴 Dominican Republic (7:00 PM)');
-    const domNoche = await scrapeWithRetry(
-        () => scrapeDominicanRepublic(),
-        (results) => results?.find(r => r.name.includes('Noche')),
-        'DR Noche',
-        15
-    );
+    // 7:00 PM - Dominican Republic + Nicaragua (PARALLEL)
+    console.log('⏰ 7:00 PM - Dominican Republic + Nicaragua (parallel)');
+    const [domNoche, ni7] = await Promise.all([
+        scrapeWithRetry(
+            () => scrapeDominicanRepublic(),
+            (results) => results?.find(r => r.name.includes('Noche')),
+            'DR Noche',
+            15
+        ),
+        scrapeWithRetry(
+            () => scrapeSuerteNica(),
+            (results) => results?.find(r => r.time === '7:00 PM'),
+            'Nicaragua 7PM',
+            15
+        )
+    ]);
+
     if (domNoche) {
         allResults.push({
             country: 'Dominican Republic',
@@ -96,14 +105,6 @@ async function scrapeAfternoonDraws() {
         });
     }
 
-    // 7:00 PM - Nicaragua
-    console.log('🇳🇮 Nicaragua (7:00 PM)');
-    const ni7 = await scrapeWithRetry(
-        () => scrapeSuerteNica(),
-        (results) => results?.find(r => r.time === '7:00 PM'),
-        'Nicaragua 7PM',
-        15
-    );
     if (ni7) {
         allResults.push({
             country: 'Nicaragua',
@@ -147,14 +148,23 @@ async function scrapeAfternoonDraws() {
         });
     }
 
-    // 10:00 PM - Nicaragua
-    console.log('🇳🇮 Nicaragua (10:00 PM)');
-    const ni10 = await scrapeWithRetry(
-        () => scrapeSuerteNica(),
-        (results) => results?.find(r => r.time === '10:00 PM'),
-        'Nicaragua 10PM',
-        15
-    );
+    // 10:00 PM - Nicaragua + Honduras (PARALLEL)
+    console.log('⏰ 10:00 PM - Nicaragua + Honduras (parallel)');
+    const [ni10, hn10] = await Promise.all([
+        scrapeWithRetry(
+            () => scrapeSuerteNica(),
+            (results) => results?.find(r => r.time === '10:00 PM'),
+            'Nicaragua 10PM',
+            15
+        ),
+        scrapeWithRetry(
+            () => scrapeHonduras(),
+            (results) => results?.find(r => r.time === '10:00 PM'),
+            'Honduras 10PM',
+            15
+        )
+    ]);
+
     if (ni10) {
         allResults.push({
             country: 'Nicaragua',
@@ -164,14 +174,6 @@ async function scrapeAfternoonDraws() {
         });
     }
 
-    // 10:00 PM - Honduras
-    console.log('🇭🇳 Honduras (10:00 PM)');
-    const hn10 = await scrapeWithRetry(
-        () => scrapeHonduras(),
-        (results) => results?.find(r => r.time === '10:00 PM'),
-        'Honduras 10PM',
-        15
-    );
     if (hn10) {
         allResults.push({
             country: 'Honduras',

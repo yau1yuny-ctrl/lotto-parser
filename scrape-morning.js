@@ -171,14 +171,23 @@ async function scrapeMorningDraws() {
         console.log('⏭️  Panama: Not Wednesday or Sunday, skipping');
     }
 
-    // 4:00 PM - Nicaragua
-    console.log('🇳🇮 Nicaragua (4:00 PM)');
-    const ni4 = await scrapeWithRetry(
-        () => scrapeSuerteNica(),
-        (results) => results?.find(r => r.time === '4:00 PM'),
-        'Nicaragua 4PM',
-        15
-    );
+    // 4:00 PM - Nicaragua + Honduras (PARALLEL)
+    console.log('⏰ 4:00 PM - Nicaragua + Honduras (parallel)');
+    const [ni4, hn4] = await Promise.all([
+        scrapeWithRetry(
+            () => scrapeSuerteNica(),
+            (results) => results?.find(r => r.time === '4:00 PM'),
+            'Nicaragua 4PM',
+            15
+        ),
+        scrapeWithRetry(
+            () => scrapeHonduras(),
+            (results) => results?.find(r => r.time === '4:00 PM'),
+            'Honduras 4PM',
+            15
+        )
+    ]);
+
     if (ni4) {
         allResults.push({
             country: 'Nicaragua',
@@ -188,14 +197,6 @@ async function scrapeMorningDraws() {
         });
     }
 
-    // 4:00 PM - Honduras
-    console.log('🇭🇳 Honduras (4:00 PM)');
-    const hn4 = await scrapeWithRetry(
-        () => scrapeHonduras(),
-        (results) => results?.find(r => r.time === '4:00 PM'),
-        'Honduras 4PM',
-        15
-    );
     if (hn4) {
         allResults.push({
             country: 'Honduras',
