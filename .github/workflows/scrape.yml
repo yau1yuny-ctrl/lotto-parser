@@ -39,6 +39,9 @@ jobs:
         
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
+      
+      - name: Install Rebrowser Playwright Browsers
+        run: npx rebrowser-playwright install chromium
 
       - name: Run Scraper
         run: node index.js
