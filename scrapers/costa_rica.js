@@ -1,111 +1,245 @@
-﻿import { chromium } from 'playwright-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+﻿import { chromium } from 'rebrowser-playwright';
 import { enableAdBlocker } from '../utils/resource-blocker.js';
 import { setRandomUserAgent } from '../utils/user-agent.js';
 import { setupAdvancedInterception } from '../utils/request-interceptor.js';
 
-chromium.use(StealthPlugin());
-
 export async function scrapeCostaRica() {
-    const browser = await chromium.launch({ headless: true });
+    console.log('Starting Costa Rica JPS scraper (FINAL - with Lotería Nacional fix)...');
+    const browser = await chromium.launch({
+        headless: true,
+        args: [
+            '--disable-blink-features=AutomationControlled',
+            '--disable-features=IsolateOrigins,site-per-process'
+        ]
+    });
+
     const page = await browser.newPage();
 
-    // Apply all optimizations
-    await setRandomUserAgent(page);
-    await enableAdBlocker(page);
-    await setupAdvancedInterception(page);
-
     try {
-        console.log('Starting Costa Rica scraper - loteriascostarica.com');
-        await page.goto('https://www.loteriascostarica.com/', { waitUntil: 'networkidle', timeout: 60000 });
+        // Apply optimizations
+        await setRandomUserAgent(page);
+        await enableAdBlocker(page);
+        await setupAdvancedInterception(page);
 
-        // Wait for cards to load
-        await page.waitForSelector('.card', { timeout: 30000 });
-
-        // Get today's date in YYYY-MM-DD format
+        // Get today's date and check if Sunday
         const today = new Date();
+        const isSunday = today.getDay() === 0;
         const todayStr = today.getFullYear() + '-' +
             String(today.getMonth() + 1).padStart(2, '0') + '-' +
             String(today.getDate()).padStart(2, '0');
 
-        // Extract results for all three draws
-        const results = await page.evaluate((todayStr) => {
-            const findCard = (titleText) => {
-                return Array.from(document.querySelectorAll('.card')).find(card =>
-                    card.querySelector('.card-header')?.innerText?.toUpperCase().includes(titleText.toUpperCase())
-                );
-            };
+        console.log('Looking for results from:', todayStr);
+        console.log('Is Sunday:', isSunday);
 
-            const extractPrizes = (ticaCard, monazoCard, todayStr) => {
-                if (!ticaCard || !monazoCard) return null;
+        const allResults = [];
 
-                const ticaDate = ticaCard.querySelector('.card-footer .text-left')?.innerText?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
-                const monazoDate = monazoCard.querySelector('.card-footer .text-left')?.innerText?.match(/\d{4}-\d{2}-\d{2}/)?.[0];
-                const time = ticaCard.querySelector('.card-footer .text-right')?.innerText?.match(/\d{2}:\d{2}/)?.[0];
+        // Scrape Nuevos Tiempos Reventados
+        console.log('Fetching Nuevos Tiempos Reventados...');
+        await page.goto('https://www.jps.go.cr/resultados/nuevos-tiempos-reventados', {
+            waitUntil: 'networkidle',
+            timeout: 90000
+        });
 
-                if (ticaDate !== todayStr || monazoDate !== todayStr) return null;
+        await page.waitForTimeout(8000);
 
-                const ticaNumbers = Array.from(ticaCard.querySelectorAll('.btn-circle')).map(n => n.innerText.trim());
-                const monazoNumbers = Array.from(monazoCard.querySelectorAll('.btn-circle')).map(n => n.innerText.trim());
+        const nuevosTiempos = await page.evaluate((todayStr) => {
+            const results = { mediodia: null, tarde: null, noche: null };
+            const html = document.documentElement.innerHTML;
 
-                const prize1 = ticaNumbers[0];
-                const fullNumber = monazoNumbers[0] || '';
+            // Search for specific timestamps
+            // Mediodía: 2026-01-11T12:55:00
+            const mediodiaPattern = '\\"fecha\\":\\"' + todayStr + 'T12:55:00\\"';
+            const mediodiaIndex = html.indexOf(mediodiaPattern);
+            if (mediodiaIndex !== -1) {
+                const chunk = html.substring(Math.max(0, mediodiaIndex - 200), mediodiaIndex);
+                const match = chunk.match(/\\"numero\\":(\d{1,2})/);
+                if (match) results.mediodia = match[1].padStart(2, '0');
+            }
 
-                if (!prize1 || fullNumber.length < 3) return null;
+            // Tarde: 2026-01-11T16:30:00
+            const tardePattern = '\\"fecha\\":\\"' + todayStr + 'T16:30:00\\"';
+            const tardeIndex = html.indexOf(tardePattern);
+            if (tardeIndex !== -1) {
+                const chunk = html.substring(Math.max(0, tardeIndex - 200), tardeIndex);
+                const match = chunk.match(/\\"numero\\":(\d{1,2})/);
+                if (match) results.tarde = match[1].padStart(2, '0');
+            }
 
-                const prize2 = fullNumber.substring(0, 2);
-                const prize3 = fullNumber.substring(fullNumber.length - 2);
+            // Noche: 2026-01-11T19:30:00
+            const nochePattern = '\\"fecha\\":\\"' + todayStr + 'T19:30:00\\"';
+            const nocheIndex = html.indexOf(nochePattern);
+            if (nocheIndex !== -1) {
+                const chunk = html.substring(Math.max(0, nocheIndex - 200), nocheIndex);
+                const match = chunk.match(/\\"numero\\":(\d{1,2})/);
+                if (match) results.noche = match[1].padStart(2, '0');
+            }
 
-                return {
-                    time: time,
-                    prizes: [prize1, prize2, prize3]
-                };
-            };
-
-            const draws = [];
-
-            // Draw 1: 1:55 PM (01:00) - TICA DIA REVENTADOS + MONAZO TICA DIA
-            const ticaDia = findCard('TICA DIA REVENTADOS');
-            const monazoDia = findCard('MONAZO TICA DIA');
-            const draw1 = extractPrizes(ticaDia, monazoDia, todayStr);
-            if (draw1) draws.push(draw1);
-
-            // Draw 2: 5:30 PM (17:30) - TICA REVENTADOS 4:30 + MONAZO TICA 4:30 PM
-            const tica430 = findCard('TICA REVENTADOS 4:30');
-            const monazo430 = findCard('MONAZO TICA 4:30 PM');
-            const draw2 = extractPrizes(tica430, monazo430, todayStr);
-            if (draw2) draws.push(draw2);
-
-            // Draw 3: 8:30 PM (20:30) - TICA NOCHE REVENTADOS + MONAZO TICA NOCHE
-            const ticaNoche = findCard('TICA NOCHE REVENTADOS');
-            const monazoNoche = findCard('MONAZO TICA NOCHE');
-            const draw3 = extractPrizes(ticaNoche, monazoNoche, todayStr);
-            if (draw3) draws.push(draw3);
-
-            return draws;
+            return results;
         }, todayStr);
+
+        console.log('Nuevos Tiempos:', nuevosTiempos);
+
+        // Scrape 3 Monazos
+        console.log('Fetching 3 Monazos...');
+        await page.goto('https://www.jps.go.cr/resultados/3-monazos', {
+            waitUntil: 'networkidle',
+            timeout: 120000  // Increased to 120 seconds
+        });
+
+        await page.waitForTimeout(10000);  // Increased wait time
+
+        const monazos = await page.evaluate((todayStr) => {
+            const results = { mediodia: null, tarde: null, noche: null };
+            const html = document.documentElement.innerHTML;
+
+            // Search for specific timestamps
+            // Mediodía: 2026-01-11T12:55:00
+            const mediodiaPattern = '\\"fecha\\":\\"' + todayStr + 'T12:55:00\\"';
+            const mediodiaIndex = html.indexOf(mediodiaPattern);
+            if (mediodiaIndex !== -1) {
+                const chunk = html.substring(Math.max(0, mediodiaIndex - 500), mediodiaIndex);
+                const matches = chunk.match(/\[\\\"(\d)\\\",\\\"(\d)\\\",\\\"(\d)\\\"\]/g);
+                if (matches && matches.length > 0) {
+                    const lastMatch = matches[matches.length - 1];
+                    const digits = lastMatch.match(/\d/g);
+                    if (digits) {
+                        const num = digits.join('');
+                        results.mediodia = { first2: num.substring(0, 2), last2: num.substring(1, 3) };
+                    }
+                }
+            }
+
+            // Tarde: 2026-01-11T16:30:00
+            const tardePattern = '\\"fecha\\":\\"' + todayStr + 'T16:30:00\\"';
+            const tardeIndex = html.indexOf(tardePattern);
+            if (tardeIndex !== -1) {
+                const chunk = html.substring(Math.max(0, tardeIndex - 500), tardeIndex);
+                const matches = chunk.match(/\[\\\"(\d)\\\",\\\"(\d)\\\",\\\"(\d)\\\"\]/g);
+                if (matches && matches.length > 0) {
+                    const lastMatch = matches[matches.length - 1];
+                    const digits = lastMatch.match(/\d/g);
+                    if (digits) {
+                        const num = digits.join('');
+                        results.tarde = { first2: num.substring(0, 2), last2: num.substring(1, 3) };
+                    }
+                }
+            }
+
+            // Noche: 2026-01-11T19:30:00
+            const nochePattern = '\\"fecha\\":\\"' + todayStr + 'T19:30:00\\"';
+            const nocheIndex = html.indexOf(nochePattern);
+            if (nocheIndex !== -1) {
+                const chunk = html.substring(Math.max(0, nocheIndex - 500), nocheIndex);
+                const matches = chunk.match(/\[\\\"(\d)\\\",\\\"(\d)\\\",\\\"(\d)\\\"\]/g);
+                if (matches && matches.length > 0) {
+                    const lastMatch = matches[matches.length - 1];
+                    const digits = lastMatch.match(/\d/g);
+                    if (digits) {
+                        const num = digits.join('');
+                        results.noche = { first2: num.substring(0, 2), last2: num.substring(1, 3) };
+                    }
+                }
+            }
+
+            return results;
+        }, todayStr);
+
+        console.log('Monazos:', monazos);
+
+        // If Sunday, scrape Lotería Nacional for 8:30 PM draw
+        let loteriaNacional = null;
+        if (isSunday) {
+            console.log('Sunday detected - fetching Lotería Nacional for 8:30 PM draw...');
+
+            // Create NEW page WITHOUT adblocker (adblocker breaks Lotería Nacional)
+            const lotPage = await browser.newPage();
+            await setRandomUserAgent(lotPage);
+            // NO ADBLOCKER for this page!
+
+            await lotPage.goto('https://www.jps.go.cr/resultados/loteria-nacional', {
+                waitUntil: 'networkidle',
+                timeout: 120000
+            });
+
+            await lotPage.waitForTimeout(15000);  // Wait longer for full render
+
+            loteriaNacional = await lotPage.evaluate(() => {
+                // Extract from visible text
+                const bodyText = document.body.innerText;
+
+                // Extract numbers after "1er", "2do", "3er"
+                const primerMatch = bodyText.match(/1er[\s\S]{0,50}?(\d{2})/);
+                const segundoMatch = bodyText.match(/2do[\s\S]{0,50}?(\d{2})/);
+                const tercerMatch = bodyText.match(/3er[\s\S]{0,50}?(\d{2})/);
+
+                if (primerMatch && segundoMatch && tercerMatch) {
+                    console.log('Found Lotería Nacional:', primerMatch[1], segundoMatch[1], tercerMatch[1]);
+                    return {
+                        first: primerMatch[1],
+                        second: segundoMatch[1],
+                        third: tercerMatch[1]
+                    };
+                }
+
+                return null;
+            });
+
+            await lotPage.close();
+
+            console.log('Lotería Nacional:', loteriaNacional);
+        }
 
         await browser.close();
 
-        // Convert Costa Rica times (UTC-6) to Panama times (UTC-5)
-        const timeMap = {
-            '01:00': '2:55 PM',  // Mediodía (1:55 PM CR -> 2:55 PM Panama)
-            '13:00': '2:55 PM',  // Alternative format
-            '16:30': '5:30 PM',  // Tarde (4:30 PM CR -> 5:30 PM Panama)
-            '17:30': '6:30 PM',  // Alternative
-            '20:30': '9:30 PM'   // Noche (8:30 PM CR -> 9:30 PM Panama)
-        };
+        // Combine results
+        if (nuevosTiempos.mediodia && monazos.mediodia) {
+            allResults.push({
+                time: '2:55 PM',
+                prizes: [
+                    nuevosTiempos.mediodia,
+                    monazos.mediodia.first2,
+                    monazos.mediodia.last2
+                ]
+            });
+        }
 
-        const convertedResults = results.map(result => ({
-            time: timeMap[result.time] || result.time,
-            prizes: result.prizes
-        }));
+        if (nuevosTiempos.tarde && monazos.tarde) {
+            allResults.push({
+                time: '5:30 PM',
+                prizes: [
+                    nuevosTiempos.tarde,
+                    monazos.tarde.first2,
+                    monazos.tarde.last2
+                ]
+            });
+        }
 
-        console.log('Costa Rica scraping completed:', convertedResults);
-        return convertedResults;
+        // For 8:30 PM: use Lotería Nacional on Sundays
+        if (isSunday && loteriaNacional) {
+            allResults.push({
+                time: '8:30 PM',
+                prizes: [
+                    loteriaNacional.first,   // 1er lugar
+                    loteriaNacional.second,  // 2do lugar
+                    loteriaNacional.third    // 3er lugar
+                ]
+            });
+        } else if (!isSunday && nuevosTiempos.noche && monazos.noche) {
+            allResults.push({
+                time: '8:30 PM',
+                prizes: [
+                    nuevosTiempos.noche,
+                    monazos.noche.first2,
+                    monazos.noche.last2
+                ]
+            });
+        }
+
+        console.log('Costa Rica scraping completed:', allResults);
+        return allResults;
 
     } catch (error) {
-        console.error('Error scraping Costa Rica:', error);
+        console.error('Error scraping Costa Rica JPS:', error);
         await browser.close();
         return [];
     }

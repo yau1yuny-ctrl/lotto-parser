@@ -2,104 +2,68 @@
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { enableAdBlocker } from '../utils/resource-blocker.js';
 import { setRandomUserAgent } from '../utils/user-agent.js';
-import { setupAdvancedInterception } from '../utils/request-interceptor.js';
-import { retryNavigation } from '../utils/retry.js';
 
-// Add stealth plugin to avoid bot detection
+// Add stealth plugin
 chromium.use(StealthPlugin());
 
 export async function scrapePanama() {
-    console.log('Starting official Panama LNB scraper (Optimized version)...');
+    console.log('Starting Panama LNB scraper (FINAL WORKING VERSION)...');
     const browser = await chromium.launch({ headless: true });
-    try {
-        const page = await browser.newPage();
-        page.setDefaultTimeout(180000); // 3 minutes
+    const page = await browser.newPage();
 
-        // Apply all optimizations
-        console.log('Applying optimizations...');
+    try {
         await setRandomUserAgent(page);
         await enableAdBlocker(page);
-        await setupAdvancedInterception(page);
 
-        console.log('Navigating to LNB official page with retry logic...');
-
-        // Use retry logic for navigation
-        await retryNavigation(page, 'https://www.lnb.gob.pa/', {
+        await page.goto('https://www.lnb.gob.pa/', {
+            waitUntil: 'networkidle',
             timeout: 90000
         });
 
-        console.log('Waiting for content...');
-        await page.waitForTimeout(10000); // Increased wait time
+        await page.waitForTimeout(10000);
 
-        const results = await page.evaluate(function () {
+        const results = await page.evaluate(() => {
             const data = [];
-
-            // Get today's date in Panama timezone
             const today = new Date();
             const todayDay = today.getDate();
-            const todayMonth = today.toLocaleString('es-ES', { month: 'long' });
+            const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+            const todayMonth = monthNames[today.getMonth()];
             const todayYear = today.getFullYear();
 
-            // Each draw is in a containerTablero
             const containers = document.querySelectorAll('div.containerTablero');
 
-            containers.forEach(container => {
-                // Extract the date from this sorteo
+            containers.forEach((container) => {
                 const dateEl = container.querySelector('.date');
                 if (!dateEl) return;
 
-                const dateText = dateEl.innerText.trim().replace(/\s+/g, ' ');
-                // Format: "04 de Enero de 2026"
-                const dateParts = dateText.split(' ');
+                const dateText = dateEl.innerText.trim();
+                const dateParts = dateText.split('\n').filter(p => p.trim() !== '');
+
                 if (dateParts.length < 5) return;
 
                 const day = parseInt(dateParts[0]);
-                const month = dateParts[2]; // "Enero", "Febrero", etc.
+                const month = dateParts[2].toLowerCase();
                 const year = parseInt(dateParts[4]);
 
-                // Only process if this sorteo is from today
-                if (day !== todayDay || month.toLowerCase() !== todayMonth.toLowerCase() || year !== todayYear) {
-                    return; // Skip this sorteo, it's not from today
+                if (day !== todayDay || month !== todayMonth || year !== todayYear) {
+                    return;
                 }
 
-                // Identify the draw by the logo image
-                const logoImg = container.querySelector('.sorteo-logo img');
-                let drawName = 'Sorteo Desconocido';
-
-                if (logoImg) {
-                    const src = logoImg.src;
-                    if (src.includes('TableroD.webp')) drawName = 'Sorteo Dominical';
-                    else if (src.includes('TableroI.webp')) drawName = 'Sorteo Miercolito';
-                    else if (src.includes('TableroZ.webp')) drawName = 'Gordito del Zodíaco';
-                    else if (src.includes('TableroE.webp')) drawName = 'Sorteo Extraordinario';
-                }
-
-                // Prizes are in .premio blocks
                 const prizes = [];
                 const premioBlocks = container.querySelectorAll('.premio');
 
-                premioBlocks.forEach((block, index) => {
-                    const labelEl = block.querySelector('h2');
+                premioBlocks.forEach((block) => {
                     const numberEl = block.querySelector('.premio-number');
-
                     if (numberEl) {
-                        const label = labelEl ? labelEl.innerText.trim() : `Premio ${index + 1}`;
-                        const number = numberEl.innerText.trim();
-
-                        // User specifically asked NOT to include letters.
-                        // We only store the numbers for 1st, 2nd, and 3rd prizes.
-                        prizes.push({
-                            label: label,
-                            number: number
-                        });
+                        prizes.push(numberEl.innerText.trim());
                     }
                 });
 
                 if (prizes.length > 0) {
                     data.push({
-                        title: drawName,
-                        date: dateText, // Include the date for reference
-                        prizes: prizes
+                        time: '3:30 PM',
+                        prizes: prizes.slice(0, 3)
                     });
                 }
             });
@@ -107,11 +71,12 @@ export async function scrapePanama() {
             return data;
         });
 
-        return results;
-    } catch (error) {
-        console.error('Error in Panama LNB scraper:', error.message);
-        return null;
-    } finally {
         await browser.close();
+        return results;
+
+    } catch (error) {
+        console.error('Error in Panama scraper:', error.message);
+        await browser.close();
+        return [];
     }
 }

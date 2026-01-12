@@ -87,8 +87,12 @@ export async function scrapeUSLotteries() {
 
                 const title = titleEl.innerText.trim();
 
-                // We are looking for New York and Florida
-                if (title.includes('New York') || title.includes('Florida')) {
+                // Only include: New York 3:30, New York 11:30, and Florida Noche
+                // Exclude: Florida Día
+                const isNewYork = title.includes('New York');
+                const isFloridaNoche = title.includes('Florida') && title.includes('Noche');
+
+                if (isNewYork || isFloridaNoche) {
                     // Check date
                     const dateEl = block.querySelector('.session-date');
                     if (dateEl) {
