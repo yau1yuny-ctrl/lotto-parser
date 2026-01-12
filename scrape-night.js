@@ -3,10 +3,54 @@ import { scrapeUSLotteries } from './scrapers/us_lotteries.js';
 import { DateTime } from 'luxon';
 
 console.log('='.repeat(60));
-console.log('LOTTERY SCRAPER - NIGHT BLOCK');
+console.log('LOTTERY SCRAPER - NIGHT BLOCK (with retry)');
 console.log('Time: 10:20 PM - 12:30 AM Panama');
 console.log('='.repeat(60));
 console.log('');
+
+async function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function scrapeWithRetry(scrapeFn, filterFn, name, maxAttempts = 30) {
+    let found = false;
+    let attempts = 0;
+    let result = null;
+
+    console.log(`🔄 Starting retry loop for ${name}...`);
+    console.log(`Max attempts: ${maxAttempts} (retry every 2 minutes)`);
+    console.log('');
+
+    while (!found && attempts < maxAttempts) {
+        attempts++;
+        console.log(`Attempt ${attempts}/${maxAttempts} for ${name}...`);
+
+        try {
+            const results = await scrapeFn();
+            result = filterFn(results);
+
+            if (result) {
+                console.log(`✅ ${name} found!`);
+                found = true;
+            } else {
+                if (attempts < maxAttempts) {
+                    console.log(`⏳ ${name} not found yet. Waiting 2 minutes before retry...`);
+                    await sleep(120000); // 2 minutes
+                } else {
+                    console.log(`❌ ${name} not found after ${maxAttempts} attempts. Giving up.`);
+                }
+            }
+        } catch (e) {
+            console.error(`❌ Error on attempt ${attempts}:`, e.message);
+            if (attempts < maxAttempts) {
+                console.log(`⏳ Waiting 2 minutes before retry...`);
+                await sleep(120000);
+            }
+        }
+    }
+
+    return result;
+}
 
 async function scrapeNightDraws() {
     const now = DateTime.now().setZone('America/Panama');
@@ -17,22 +61,23 @@ async function scrapeNightDraws() {
 
     const allResults = [];
 
-    // 11:30 PM - USA (New York)
+    // 11:30 PM - USA (New York) with retry
     console.log('🇺🇸 Scraping USA (11:30 PM)...');
-    try {
-        const usaResults = await scrapeUSLotteries();
-        const nyResult = usaResults?.find(r => r.title.includes('New York 11:30'));
-        if (nyResult) {
-            console.log(`✅ USA New York 11:30: ${nyResult.prizes.join(', ')}`);
-            allResults.push({
-                country: 'USA',
-                draw_name: 'New York 11:30 PM',
-                time: '11:30 PM',
-                numbers: nyResult.prizes
-            });
-        }
-    } catch (e) {
-        console.error('❌ USA error:', e.message);
+    const nyResult = await scrapeWithRetry(
+        () => scrapeUSLotteries(),
+        (results) => results?.find(r => r.title.includes('New York 11:30')),
+        'USA New York 11:30 PM',
+        30 // 30 attempts = 1 hour
+    );
+
+    if (nyResult) {
+        console.log(`✅ USA New York 11:30: ${nyResult.prizes.join(', ')}`);
+        allResults.push({
+            country: 'USA',
+            draw_name: 'New York 11:30 PM',
+            time: '11:30 PM',
+            numbers: nyResult.prizes
+        });
     }
 
     // Save to Supabase
@@ -65,6 +110,8 @@ async function scrapeNightDraws() {
                 console.error(`❌ ${result.country} error:`, e.message);
             }
         }
+    } else {
+        console.log('⚠️  No results found to save');
     }
 
     console.log('');

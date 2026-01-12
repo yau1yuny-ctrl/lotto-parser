@@ -7,10 +7,51 @@ import { scrapeUSLotteries } from './scrapers/us_lotteries.js';
 import { DateTime } from 'luxon';
 
 console.log('='.repeat(60));
-console.log('LOTTERY SCRAPER - AFTERNOON BLOCK');
+console.log('LOTTERY SCRAPER - AFTERNOON BLOCK (with retry)');
 console.log('Time: 4:50 PM - 10:50 PM Panama');
 console.log('='.repeat(60));
 console.log('');
+
+async function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function scrapeWithRetry(scrapeFn, filterFn, name, maxAttempts = 15) {
+    let found = false;
+    let attempts = 0;
+    let result = null;
+
+    console.log(`🔄 ${name} - starting retry loop (max ${maxAttempts} attempts)...`);
+
+    while (!found && attempts < maxAttempts) {
+        attempts++;
+        console.log(`  Attempt ${attempts}/${maxAttempts}...`);
+
+        try {
+            const results = await scrapeFn();
+            result = filterFn(results);
+
+            if (result) {
+                console.log(`  ✅ Found!`);
+                found = true;
+            } else {
+                if (attempts < maxAttempts) {
+                    console.log(`  ⏳ Not found. Waiting 2 minutes...`);
+                    await sleep(120000);
+                } else {
+                    console.log(`  ❌ Not found after ${maxAttempts} attempts.`);
+                }
+            }
+        } catch (e) {
+            console.error(`  ❌ Error:`, e.message);
+            if (attempts < maxAttempts) {
+                await sleep(120000);
+            }
+        }
+    }
+
+    return result;
+}
 
 async function scrapeAfternoonDraws() {
     const now = DateTime.now().setZone('America/Panama');
@@ -22,129 +63,122 @@ async function scrapeAfternoonDraws() {
     const allResults = [];
 
     // 5:30 PM - Costa Rica (Tarde)
-    console.log('🇨🇷 Scraping Costa Rica (5:30 PM)...');
-    try {
-        const costaRicaResults = await scrapeCostaRica();
-        const tardeResult = costaRicaResults?.find(r => r.time === '5:30 PM');
-        if (tardeResult) {
-            console.log(`✅ Costa Rica Tarde: ${tardeResult.prizes.join(', ')}`);
-            allResults.push({
-                country: 'Costa Rica',
-                draw_name: 'Monazo Tarde',
-                time: tardeResult.time,
-                numbers: tardeResult.prizes
-            });
-        }
-    } catch (e) {
-        console.error('❌ Costa Rica error:', e.message);
+    console.log('🇨🇷 Costa Rica (5:30 PM)');
+    const cr530 = await scrapeWithRetry(
+        () => scrapeCostaRica(),
+        (results) => results?.find(r => r.time === '5:30 PM'),
+        'CR Tarde',
+        15
+    );
+    if (cr530) {
+        allResults.push({
+            country: 'Costa Rica',
+            draw_name: 'Monazo Tarde',
+            time: cr530.time,
+            numbers: cr530.prizes
+        });
     }
 
     // 7:00 PM - Dominican Republic (La Primera Noche)
-    console.log('🇩🇴 Scraping Dominican Republic (7:00 PM)...');
-    try {
-        const domResults = await scrapeDominicanRepublic();
-        const nocheResult = domResults?.find(r => r.name.includes('Noche'));
-        if (nocheResult) {
-            console.log(`✅ Dominican Republic Noche: ${nocheResult.numbers.join(', ')}`);
-            allResults.push({
-                country: 'Dominican Republic',
-                draw_name: 'La Primera Noche',
-                time: nocheResult.hour,
-                numbers: nocheResult.numbers
-            });
-        }
-    } catch (e) {
-        console.error('❌ Dominican Republic error:', e.message);
+    console.log('🇩🇴 Dominican Republic (7:00 PM)');
+    const domNoche = await scrapeWithRetry(
+        () => scrapeDominicanRepublic(),
+        (results) => results?.find(r => r.name.includes('Noche')),
+        'DR Noche',
+        15
+    );
+    if (domNoche) {
+        allResults.push({
+            country: 'Dominican Republic',
+            draw_name: 'La Primera Noche',
+            time: domNoche.hour,
+            numbers: domNoche.numbers
+        });
     }
 
     // 7:00 PM - Nicaragua
-    console.log('🇳🇮 Scraping Nicaragua (7:00 PM)...');
-    try {
-        const nicaResults = await scrapeSuerteNica();
-        const pmResult = nicaResults?.find(r => r.time === '7:00 PM');
-        if (pmResult) {
-            console.log(`✅ Nicaragua 7:00 PM: ${pmResult.prizes.join(', ')}`);
-            allResults.push({
-                country: 'Nicaragua',
-                draw_name: 'Nica 7:00 PM',
-                time: pmResult.time,
-                numbers: pmResult.prizes
-            });
-        }
-    } catch (e) {
-        console.error('❌ Nicaragua error:', e.message);
+    console.log('🇳🇮 Nicaragua (7:00 PM)');
+    const ni7 = await scrapeWithRetry(
+        () => scrapeSuerteNica(),
+        (results) => results?.find(r => r.time === '7:00 PM'),
+        'Nicaragua 7PM',
+        15
+    );
+    if (ni7) {
+        allResults.push({
+            country: 'Nicaragua',
+            draw_name: 'Nica 7:00 PM',
+            time: ni7.time,
+            numbers: ni7.prizes
+        });
     }
 
     // 8:30 PM - Costa Rica (Noche)
-    console.log('🇨🇷 Scraping Costa Rica (8:30 PM)...');
-    try {
-        const costaRicaResults = await scrapeCostaRica();
-        const nocheResult = costaRicaResults?.find(r => r.time === '8:30 PM');
-        if (nocheResult) {
-            console.log(`✅ Costa Rica Noche: ${nocheResult.prizes.join(', ')}`);
-            allResults.push({
-                country: 'Costa Rica',
-                draw_name: 'Tica Noche',
-                time: nocheResult.time,
-                numbers: nocheResult.prizes
-            });
-        }
-    } catch (e) {
-        console.error('❌ Costa Rica error:', e.message);
+    console.log('🇨🇷 Costa Rica (8:30 PM)');
+    const cr830 = await scrapeWithRetry(
+        () => scrapeCostaRica(),
+        (results) => results?.find(r => r.time === '8:30 PM'),
+        'CR Noche',
+        15
+    );
+    if (cr830) {
+        allResults.push({
+            country: 'Costa Rica',
+            draw_name: 'Tica Noche',
+            time: cr830.time,
+            numbers: cr830.prizes
+        });
     }
 
     // 9:50 PM - USA (Florida Noche)
-    console.log('🇺🇸 Scraping USA (9:50 PM)...');
-    try {
-        const usaResults = await scrapeUSLotteries();
-        const flResult = usaResults?.find(r => r.title.includes('Florida Noche'));
-        if (flResult) {
-            console.log(`✅ USA Florida Noche: ${flResult.prizes.join(', ')}`);
-            allResults.push({
-                country: 'USA',
-                draw_name: 'Florida Noche',
-                time: '9:50 PM',
-                numbers: flResult.prizes
-            });
-        }
-    } catch (e) {
-        console.error('❌ USA error:', e.message);
+    console.log('🇺🇸 USA (9:50 PM)');
+    const usaFL = await scrapeWithRetry(
+        () => scrapeUSLotteries(),
+        (results) => results?.find(r => r.title.includes('Florida Noche')),
+        'USA FL Noche',
+        15
+    );
+    if (usaFL) {
+        allResults.push({
+            country: 'USA',
+            draw_name: 'Florida Noche',
+            time: '9:50 PM',
+            numbers: usaFL.prizes
+        });
     }
 
     // 10:00 PM - Nicaragua
-    console.log('🇳🇮 Scraping Nicaragua (10:00 PM)...');
-    try {
-        const nicaResults = await scrapeSuerteNica();
-        const pmResult = nicaResults?.find(r => r.time === '10:00 PM');
-        if (pmResult) {
-            console.log(`✅ Nicaragua 10:00 PM: ${pmResult.prizes.join(', ')}`);
-            allResults.push({
-                country: 'Nicaragua',
-                draw_name: 'Nica 10:00 PM',
-                time: pmResult.time,
-                numbers: pmResult.prizes
-            });
-        }
-    } catch (e) {
-        console.error('❌ Nicaragua error:', e.message);
+    console.log('🇳🇮 Nicaragua (10:00 PM)');
+    const ni10 = await scrapeWithRetry(
+        () => scrapeSuerteNica(),
+        (results) => results?.find(r => r.time === '10:00 PM'),
+        'Nicaragua 10PM',
+        15
+    );
+    if (ni10) {
+        allResults.push({
+            country: 'Nicaragua',
+            draw_name: 'Nica 10:00 PM',
+            time: ni10.time,
+            numbers: ni10.prizes
+        });
     }
 
     // 10:00 PM - Honduras
-    console.log('🇭🇳 Scraping Honduras (10:00 PM)...');
-    try {
-        const hondurasResults = await scrapeHonduras();
-        const pmResult = hondurasResults?.find(r => r.time === '10:00 PM');
-        if (pmResult) {
-            console.log(`✅ Honduras 10:00 PM: ${pmResult.prizes.join(', ')}`);
-            allResults.push({
-                country: 'Honduras',
-                draw_name: 'Honduras 10:00 PM',
-                time: pmResult.time,
-                numbers: pmResult.prizes
-            });
-        }
-    } catch (e) {
-        console.error('❌ Honduras error:', e.message);
+    console.log('🇭🇳 Honduras (10:00 PM)');
+    const hn10 = await scrapeWithRetry(
+        () => scrapeHonduras(),
+        (results) => results?.find(r => r.time === '10:00 PM'),
+        'Honduras 10PM',
+        15
+    );
+    if (hn10) {
+        allResults.push({
+            country: 'Honduras',
+            draw_name: 'Honduras 10:00 PM',
+            time: hn10.time,
+            numbers: hn10.prizes
+        });
     }
 
     // Save to Supabase
