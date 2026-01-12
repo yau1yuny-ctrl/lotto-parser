@@ -16,12 +16,12 @@ jobs:
       
       - name: Install dependencies
         run: npm install
+      
+      - name: Set browser path
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/pw-browsers" >> $GITHUB_ENV
         
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
-      
-      - name: Install Rebrowser Playwright Browsers
-        run: npx rebrowser-playwright install --with-deps chromium
 
       - name: Run Test Scraper (No Date Validation)
         run: node index-test.js
