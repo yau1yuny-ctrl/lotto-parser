@@ -166,9 +166,47 @@ async function runTestScrapers() {
     console.log('='.repeat(60));
     console.log('');
 
-    // Note: Not saving to Supabase in test mode
-    // Results are displayed above for verification
-    console.log('✅ Test completed! Results displayed above.');
+    if (allResults.length > 0) {
+        console.log('Saving to Supabase...');
+
+        // Group results by country for proper structure
+        const resultsByCountry = {};
+        allResults.forEach(result => {
+            if (!resultsByCountry[result.country]) {
+                resultsByCountry[result.country] = [];
+            }
+            resultsByCountry[result.country].push({
+                time: result.draw_time,
+                numbers: result.numbers
+            });
+        });
+
+        // Save each country's results
+        for (const [country, draws] of Object.entries(resultsByCountry)) {
+            try {
+                const { error } = await supabase
+                    .from('lottery_results')
+                    .insert([{
+                        country: country,
+                        draw_name: `${country} Test`,
+                        draw_date: testDate,
+                        data: draws,
+                        scraped_at: new Date().toISOString()
+                    }]);
+
+                if (error) {
+                    console.error(`❌ ${country} Supabase error:`, error);
+                } else {
+                    console.log(`✅ ${country}: Saved ${draws.length} draws to Supabase`);
+                }
+            } catch (e) {
+                console.error(`❌ ${country} error:`, e.message);
+            }
+        }
+    } else {
+        console.log('⚠️  No results to save');
+    }
+
     console.log('');
     console.log('Test scraper completed!');
 }
