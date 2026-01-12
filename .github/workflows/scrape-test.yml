@@ -21,7 +21,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       
       - name: Install Rebrowser Playwright Browsers
-        run: npx rebrowser-playwright install chromium
+        run: npx rebrowser-playwright install --with-deps chromium
 
       - name: Run Test Scraper (No Date Validation)
         run: node index-test.js
