@@ -33,18 +33,16 @@ async function waitUntilDrawTime(drawTime) {
         millisecond: 0
     });
 
-    // If target time has passed, it's for tomorrow (shouldn't happen in normal operation)
-    if (target < now) {
-        target = target.plus({ days: 1 });
-    }
-
     const waitMs = target.diff(now).milliseconds;
 
+    // Only wait if the time hasn't passed yet
     if (waitMs > 0) {
         const waitMinutes = Math.round(waitMs / 60000);
         console.log(`⏰ Waiting ${waitMinutes} minutes until ${drawTime}...`);
         await sleep(waitMs);
         console.log(`✅ It's ${drawTime} - starting search now!`);
+    } else {
+        console.log(`✅ ${drawTime} already passed - starting search immediately!`);
     }
 }
 
