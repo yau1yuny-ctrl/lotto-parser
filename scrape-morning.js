@@ -205,17 +205,17 @@ async function scrapeMorningDraws() {
         15
     );
 
-    // 3:30 PM - USA (New York)
-    console.log('🇺🇸 USA (3:30 PM)');
-    await waitUntilDrawTime('3:30 PM');
+    // 2:30 PM - USA (New York)
+    console.log('🇺🇸 USA (2:30 PM)');
+    await waitUntilDrawTime('2:30 PM');
     await scrapeWithRetry(
         () => scrapeUSLotteries(),
         (results) => results?.find(r => r.title.includes('New York 3:30')),
-        'USA NY 3:30PM',
+        'USA NY 2:30PM',
         {
             country: 'USA',
             drawName: 'New York 2:30 PM',
-            time: '3:30 PM',
+            time: '2:30 PM',
             date: today,
             getNumbers: (r) => r.prizes
         },
