@@ -188,17 +188,17 @@ async function scrapeMorningDraws() {
         15
     );
 
-    // 2:55 PM - Costa Rica (Mediodía)
-    console.log('🇨🇷 Costa Rica (2:55 PM)');
-    await waitUntilDrawTime('2:55 PM');
+    // 1:55 PM - Costa Rica (Mediodía)
+    console.log('🇨🇷 Costa Rica (1:55 PM)');
+    await waitUntilDrawTime('1:55 PM');
     await scrapeWithRetry(
         () => scrapeCostaRica(),
-        (results) => results?.find(r => r.time === '2:55 PM'),
+        (results) => results?.find(r => r.time === '1:55 PM'),
         'CR Mediodía',
         {
             country: 'Costa Rica',
             drawName: 'Monazo Mediodía',
-            time: '2:55 PM',
+            time: '1:55 PM',
             date: today,
             getNumbers: (r) => r.prizes
         },
