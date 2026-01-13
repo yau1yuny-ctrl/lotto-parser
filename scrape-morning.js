@@ -214,7 +214,7 @@ async function scrapeMorningDraws() {
         'USA NY 3:30PM',
         {
             country: 'USA',
-            drawName: 'New York 3:30 PM',
+            drawName: 'New York 2:30 PM',
             time: '3:30 PM',
             date: today,
             getNumbers: (r) => r.prizes
