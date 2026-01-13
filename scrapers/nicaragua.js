@@ -20,7 +20,10 @@ export async function scrapeSuerteNica(targetDate = null) {
         await page.goto('https://loteriasdenicaragua.com/', { waitUntil: 'networkidle' });
 
         // Get target date for verification (use provided date or today)
-        const dateToUse = targetDate ? new Date(targetDate + 'T12:00:00') : new Date();
+        const { DateTime } = await import('luxon');
+        const dateToUse = targetDate
+            ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
+            : DateTime.now().setZone('America/Panama');
 
         const results = await page.evaluate(({ targetDate }) => {
             const allDraws = [];
