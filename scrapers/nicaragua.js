@@ -70,16 +70,16 @@ export async function scrapeNuevaya(targetDate = null) {
 
                 const timeText = timeCell.innerText.trim();
 
-                // Convert time to standard format
+                // Convert Nicaragua time (UTC-6) to Panama time (UTC-5) by adding 1 hour
                 let standardTime = '';
                 if (timeText.includes('12:00 m')) {
-                    standardTime = '12:00 PM';
+                    standardTime = '1:00 PM';  // 12:00 PM Nicaragua → 1:00 PM Panama
                 } else if (timeText.includes('3:00 pm')) {
-                    standardTime = '3:00 PM';
+                    standardTime = '4:00 PM';  // 3:00 PM Nicaragua → 4:00 PM Panama
                 } else if (timeText.includes('6:00 pm')) {
-                    standardTime = '6:00 PM';
+                    standardTime = '7:00 PM';  // 6:00 PM Nicaragua → 7:00 PM Panama
                 } else if (timeText.includes('9:00 pm')) {
-                    standardTime = '9:00 PM';
+                    standardTime = '10:00 PM'; // 9:00 PM Nicaragua → 10:00 PM Panama
                 }
 
                 if (!standardTime) return;
