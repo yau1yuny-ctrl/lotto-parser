@@ -2,9 +2,9 @@ name: Lottery Scraper - Night Block
 
 on:
   schedule:
-    # 10:20 PM Panama = 03:20 UTC (next day)
+    # 9:20 PM Panama = 02:20 UTC (next day)
     # Covers: 11:30 PM draw
-    - cron: '20 3 * * *'
+    - cron: '20 2 * * *'
     
   workflow_dispatch: # Manual execution
 
