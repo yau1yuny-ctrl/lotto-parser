@@ -199,7 +199,7 @@ export async function scrapeCostaRica(targetDate = null) {
         // Combine results
         if (nuevosTiempos.mediodia && monazos.mediodia) {
             allResults.push({
-                time: '2:55 PM',
+                time: '1:55 PM',
                 prizes: [
                     nuevosTiempos.mediodia,
                     monazos.mediodia.first2,
