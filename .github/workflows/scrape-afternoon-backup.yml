@@ -2,9 +2,9 @@ name: Lottery Scraper - Afternoon Block (Backup)
 
 on:
   schedule:
-    # 5:05 PM Panama = 22:05 UTC (5 minutes after main)
+    # 4:35 PM Panama = 21:35 UTC (5 minutes after main)
     # Backup runner with different IP
-    - cron: '5 22 * * *'
+    - cron: '35 21 * * *'
     
   workflow_dispatch: # Manual execution
 
