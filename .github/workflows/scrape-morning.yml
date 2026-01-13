@@ -2,9 +2,9 @@ name: Lottery Scraper - Morning Block
 
 on:
   schedule:
-    # 10:50 AM Panama = 15:50 UTC
+    # 10:00 AM Panama = 15:00 UTC
     # Covers: 11:00 AM through 4:00 PM draws
-    - cron: '50 15 * * *'
+    - cron: '0 15 * * *'
     
   workflow_dispatch: # Manual execution
 
