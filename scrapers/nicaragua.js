@@ -106,7 +106,7 @@ export async function scrapeSuerteNica(targetDate = null) {
             });
 
             return allDraws;
-        }, { targetDate: dateToUse.toISOString().split('T')[0] });
+        }, { targetDate: dateToUse.toISODate() });
 
         console.log('Nicaragua scraping completed:', results);
         return results;
