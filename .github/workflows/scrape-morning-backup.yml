@@ -1,0 +1,37 @@
+name: Lottery Scraper - Morning Block (Backup)
+
+on:
+  schedule:
+    # 10:05 AM Panama = 15:05 UTC (5 minutes after main)
+    # Backup runner with different IP
+    - cron: '5 15 * * *'
+    
+  workflow_dispatch: # Manual execution
+
+concurrency:
+  group: lottery-scraper-morning-backup
+  cancel-in-progress: true
+
+jobs:
+  scrape-morning-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm install
+        
+      - name: Install Playwright Browsers
+        run: PLAYWRIGHT_BROWSERS_PATH=$HOME/pw-browsers npx playwright install --with-deps chromium
+
+      - name: Run Morning Scraper (Backup)
+        run: node scrape-morning.js
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /home/runner/pw-browsers
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
