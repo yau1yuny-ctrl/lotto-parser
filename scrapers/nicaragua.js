@@ -6,114 +6,126 @@ import { setupAdvancedInterception } from '../utils/request-interceptor.js';
 
 chromium.use(StealthPlugin());
 
-export async function scrapeSuerteNica(targetDate = null) {
+export async function scrapeNuevaya(targetDate = null) {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
 
-    // Apply all optimizations
     await setRandomUserAgent(page);
     await enableAdBlocker(page);
     await setupAdvancedInterception(page);
 
     try {
-        console.log('Starting Nicaragua scraper - loteriasdenicaragua.com');
-        await page.goto('https://loteriasdenicaragua.com/', { waitUntil: 'networkidle' });
+        console.log('Starting Nicaragua scraper - nuevaya.com.ni');
+        await page.goto('https://nuevaya.com.ni/loto-diaria-de-nicaragua/', {
+            waitUntil: 'networkidle',
+            timeout: 60000
+        });
 
-        // Get target date for verification (use provided date or today)
+        // Get target date using Panama timezone
         const { DateTime } = await import('luxon');
         const dateToUse = targetDate
             ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
             : DateTime.now().setZone('America/Panama');
 
-        const results = await page.evaluate(({ targetDate }) => {
+        // Validate date from page title
+        const pageTitle = await page.title();
+        console.log('Page title:', pageTitle);
+
+        // Extract date from title: "HOY lunes, 12 de enero 2026"
+        const dateMatch = pageTitle.match(/(\d{1,2}) de (\w+) (\d{4})/);
+
+        if (dateMatch) {
+            const pageDayStr = dateMatch[1];
+            const pageDay = parseInt(pageDayStr);
+            const systemDay = dateToUse.day;
+
+            console.log(`Page date: ${pageDay}, System date: ${systemDay}`);
+
+            if (pageDay !== systemDay) {
+                console.log(`⚠️ Date mismatch! Page shows day ${pageDay} but today is ${systemDay}. Skipping.`);
+                await browser.close();
+                return [];
+            }
+
+            console.log('✅ Date validation passed');
+        } else {
+            console.log('⚠️ Could not extract date from title, proceeding with caution');
+        }
+
+        // Scrape the results
+        const results = await page.evaluate(() => {
             const allDraws = [];
 
-            // Find all game blocks
-            const blocks = document.querySelectorAll('.game-block');
+            // Find all tables
+            const tables = document.querySelectorAll('figure.wp-block-table table.has-fixed-layout');
 
-            // Nicaragua times we're looking for (in Nicaragua time UTC-6)
-            const nicaraguaTimes = ['12:00 PM', '3:00 PM', '6:00 PM', '9:00 PM'];
+            tables.forEach(table => {
+                const rows = table.querySelectorAll('tbody tr');
 
-            nicaraguaTimes.forEach(nicaraguaTime => {
-                let diariaNumber = null;
-                let premia2Numbers = [];
+                if (rows.length < 3) return;
 
-                // Find Diaria block for this time
-                blocks.forEach(block => {
-                    const title = block.querySelector('.game-title span');
-                    if (!title) return;
+                // Row 1: Time (e.g., "12:00 m", "3:00 pm")
+                const timeCell = rows[0].querySelector('td');
+                if (!timeCell) return;
 
-                    const titleText = title.innerText.trim();
+                const timeText = timeCell.innerText.trim();
 
-                    // Diaria - get the 2-digit number (primer premio)
-                    if (titleText.includes('Diaria') && titleText.includes(nicaraguaTime)) {
-                        const scores = Array.from(block.querySelectorAll('.game-scores .score'));
-                        // The main number is usually the one without special classes
-                        for (let i = 0; i < scores.length; i++) {
-                            const score = scores[i];
-                            const text = score.innerText.trim();
-                            // Look for 2-digit number
-                            if (/^\d{2}$/.test(text)) {
-                                diariaNumber = text;
-                                break;
-                            }
-                        }
-                    }
+                // Convert time to standard format
+                let standardTime = '';
+                if (timeText.includes('12:00 m')) {
+                    standardTime = '12:00 PM';
+                } else if (timeText.includes('3:00 pm')) {
+                    standardTime = '3:00 PM';
+                } else if (timeText.includes('6:00 pm')) {
+                    standardTime = '6:00 PM';
+                } else if (timeText.includes('9:00 pm')) {
+                    standardTime = '9:00 PM';
+                }
 
-                    // Premia 2 - get the two numbers (segundo y tercer premio)
-                    if (titleText.includes('Premia 2') && titleText.includes(nicaraguaTime)) {
-                        const scores = Array.from(block.querySelectorAll('.game-scores .score'));
-                        scores.forEach(score => {
-                            const text = score.innerText.trim();
-                            // Look for 2-digit numbers
-                            if (/^\d{2}$/.test(text)) {
-                                premia2Numbers.push(text);
-                            }
+                if (!standardTime) return;
+
+                // Row 3: Numbers
+                const numbersRow = rows[2];
+                const cells = numbersRow.querySelectorAll('td');
+
+                if (cells.length >= 4) {
+                    // Extract numbers from each column
+                    const diariaText = cells[0].innerText.trim();
+                    const fechasText = cells[1].innerText.trim();
+                    const juga3Text = cells[2].innerText.trim();
+                    const premia2Text = cells[3].innerText.trim();
+
+                    // Extract just the numbers (remove multipliers like "5X", "JG", etc.)
+                    const diariaMatch = diariaText.match(/\d+/);
+                    const diaria = diariaMatch ? diariaMatch[0] : '';
+
+                    // Premia2 has format "37 – 82"
+                    const premia2Numbers = premia2Text.match(/\d+/g);
+                    const premia2_1 = premia2Numbers && premia2Numbers[0] ? premia2Numbers[0] : '';
+                    const premia2_2 = premia2Numbers && premia2Numbers[1] ? premia2Numbers[1] : '';
+
+                    // Build prizes array: [Diaria, Premia2-1, Premia2-2]
+                    const prizes = [diaria, premia2_1, premia2_2].filter(n => n !== '');
+
+                    if (prizes.length === 3) {
+                        allDraws.push({
+                            time: standardTime,
+                            prizes: prizes
                         });
                     }
-                });
-
-                // If we have all 3 numbers, add to results
-                if (diariaNumber && premia2Numbers.length >= 2) {
-                    // Convert Nicaragua time (UTC-6) to Panama time (UTC-5) by adding 1 hour
-                    const timeMatch = nicaraguaTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-                    let panamaTime = '';
-
-                    if (timeMatch) {
-                        let hours = parseInt(timeMatch[1]);
-                        const minutes = timeMatch[2];
-                        const period = timeMatch[3].toUpperCase();
-
-                        // Convert to 24-hour format
-                        if (period === 'PM' && hours !== 12) hours += 12;
-                        if (period === 'AM' && hours === 12) hours = 0;
-
-                        // Add 1 hour (Nicaragua UTC-6 to Panama UTC-5)
-                        hours += 1;
-                        if (hours >= 24) hours -= 24;
-
-                        // Convert back to 12-hour format
-                        const newPeriod = hours >= 12 ? 'PM' : 'AM';
-                        const displayHours = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
-                        panamaTime = displayHours + ':' + minutes + ' ' + newPeriod;
-                    }
-
-                    allDraws.push({
-                        time: panamaTime || nicaraguaTime,
-                        prizes: [diariaNumber, premia2Numbers[0], premia2Numbers[1]]
-                    });
                 }
             });
 
             return allDraws;
-        }, { targetDate: dateToUse.toISODate() });
+        });
 
-        console.log('Nicaragua scraping completed:', results);
-        return results;
-    } catch (error) {
-        console.error('Error scraping Nicaragua:', error);
-        return null;
-    } finally {
+        console.log('Nuevaya scraping completed:', results);
         await browser.close();
+        return results;
+
+    } catch (error) {
+        console.error('Error scraping Nuevaya:', error);
+        await browser.close();
+        return [];
     }
 }
