@@ -133,17 +133,17 @@ async function scrapeNightDraws() {
     console.log(`Started at: ${now.toFormat('HH:mm')}`);
     console.log('');
 
-    // 11:30 PM - USA (New York) - wait until draw time
-    console.log('🇺🇸 USA (11:30 PM)');
-    await waitUntilDrawTime('11:30 PM');
+    // 10:30 PM - USA (New York) - wait until draw time
+    console.log('🇺🇸 USA (10:30 PM)');
+    await waitUntilDrawTime('10:30 PM');
     await scrapeWithRetry(
         () => scrapeUSLotteries(),
         (results) => results?.find(r => r.title.includes('New York 11:30')),
-        'USA New York 11:30 PM',
+        'USA New York 10:30 PM',
         {
             country: 'USA',
-            drawName: 'New York 11:30 PM',
-            time: '11:30 PM',
+            drawName: 'New York 10:30 PM',
+            time: '10:30 PM',
             date: today
         },
         30 // 30 attempts = 1 hour
