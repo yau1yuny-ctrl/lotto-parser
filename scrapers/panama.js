@@ -28,9 +28,9 @@ export async function scrapePanama(targetDate = null) {
         const dateToUse = targetDate
             ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
             : DateTime.now().setZone('America/Panama');
-        const targetDay = dateToUse.getDate();
-        const targetMonth = dateToUse.getMonth();
-        const targetYear = dateToUse.getFullYear();
+        const targetDay = dateToUse.day;
+        const targetMonth = dateToUse.month;
+        const targetYear = dateToUse.year;
 
         const results = await page.evaluate(({ day, month, year }) => {
             const data = [];

@@ -30,10 +30,8 @@ export async function scrapeCostaRica(targetDate = null) {
         const dateToUse = targetDate
             ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
             : DateTime.now().setZone('America/Panama');
-        const isSunday = dateToUse.getDay() === 0;
-        const todayStr = dateToUse.getFullYear() + '-' +
-            String(dateToUse.getMonth() + 1).padStart(2, '0') + '-' +
-            String(dateToUse.getDate()).padStart(2, '0');
+        const isSunday = dateToUse.weekday === 7;
+        const todayStr = dateToUse.toFormat('yyyy-MM-dd');
 
         console.log('Looking for results from:', todayStr);
         console.log('Is Sunday:', isSunday);

@@ -28,7 +28,7 @@ export async function scrapeHonduras(targetDate = null) {
         const dateToUse = targetDate
             ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
             : DateTime.now().setZone('America/Panama');
-        const todayStr = String(dateToUse.getDate()).padStart(2, '0') + '-' + String(dateToUse.getMonth() + 1).padStart(2, '0');
+        const todayStr = dateToUse.toFormat('dd-MM');
 
         // Extract results for La Diaria and Premia 2
         const results = await page.evaluate((todayStr) => {
