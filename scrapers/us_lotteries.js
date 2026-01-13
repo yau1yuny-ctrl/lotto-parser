@@ -74,7 +74,11 @@ export async function scrapeUSLotteries(targetDate = null) {
         await page.waitForTimeout(7000);
 
         // Get target date in DD-MM format
-        const dateToUse = targetDate ? new Date(targetDate + 'T12:00:00') : new Date();
+        // Get target date using Panama timezone
+        const { DateTime } = await import('luxon');
+        const dateToUse = targetDate
+            ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
+            : DateTime.now().setZone('America/Panama');
         const todayStr = String(dateToUse.getDate()).padStart(2, '0') + '-' + String(dateToUse.getMonth() + 1).padStart(2, '0');
 
         const results = await page.evaluate(function (todayStr) {

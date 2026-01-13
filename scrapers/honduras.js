@@ -23,7 +23,11 @@ export async function scrapeHonduras(targetDate = null) {
         await page.waitForSelector('.game-block', { timeout: 30000 });
 
         // Get target date for verification
-        const dateToUse = targetDate ? new Date(targetDate + 'T12:00:00') : new Date();
+        // Get target date using Panama timezone
+        const { DateTime } = await import('luxon');
+        const dateToUse = targetDate
+            ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
+            : DateTime.now().setZone('America/Panama');
         const todayStr = String(dateToUse.getDate()).padStart(2, '0') + '-' + String(dateToUse.getMonth() + 1).padStart(2, '0');
 
         // Extract results for La Diaria and Premia 2

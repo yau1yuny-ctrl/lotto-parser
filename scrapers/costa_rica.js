@@ -25,7 +25,11 @@ export async function scrapeCostaRica(targetDate = null) {
         await setupAdvancedInterception(page);
 
         // Get target date and check if Sunday
-        const dateToUse = targetDate ? new Date(targetDate + 'T12:00:00') : new Date();
+        // Get target date using Panama timezone
+        const { DateTime } = await import('luxon');
+        const dateToUse = targetDate
+            ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
+            : DateTime.now().setZone('America/Panama');
         const isSunday = dateToUse.getDay() === 0;
         const todayStr = dateToUse.getFullYear() + '-' +
             String(dateToUse.getMonth() + 1).padStart(2, '0') + '-' +
