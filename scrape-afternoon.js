@@ -1,5 +1,6 @@
 import { supabase } from './utils/supabase.js';
 import { scrapeNuevaya } from './scrapers/nicaragua.js';
+import { scrapeLoteriaDeNicaragua } from './scrapers/nicaragua_loteria.js';
 import { scrapeHonduras } from './scrapers/honduras.js';
 import { scrapeCostaRica } from './scrapers/costa_rica.js';
 import { scrapeDominicanRepublic } from './scrapers/dominican_republic.js';
@@ -221,7 +222,7 @@ async function scrapeAfternoonDraws() {
     await waitUntilDrawTime('10:00 PM');
     await Promise.all([
         scrapeWithRetry(
-            () => scrapeNuevaya(),
+            () => scrapeLoteriaDeNicaragua(),
             (results) => results?.find(r => r.time === '10:00 PM'),
             'Nicaragua 10PM',
             {
