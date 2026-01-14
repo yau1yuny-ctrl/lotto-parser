@@ -55,6 +55,7 @@ async function saveToSupabase(country, drawName, time, numbers, date) {
             .upsert([{
                 country: country,
                 draw_name: drawName,
+                date: date,  // For trigger/RLS compatibility
                 draw_date: date,
                 data: [{ time: time, numbers: numbers }],
                 scraped_at: new Date().toISOString()
