@@ -212,31 +212,51 @@ export async function scrapeCostaRica(targetDate = null) {
 
             await chancePage.waitForTimeout(10000);
 
-            chanceResult = await chancePage.evaluate((todayStr) => {
-                const bodyText = document.body.innerText;
+            chanceResult = await chancePage.evaluate(() => {
+                // Find all prize containers by looking for "1er", "2do", "3er" text
+                const findPrizeNumber = (prizeText) => {
+                    // Find the element containing the prize text (e.g., "1er")
+                    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+                    let node;
+                    while (node = walker.nextNode()) {
+                        if (node.textContent.includes(prizeText)) {
+                            // Found the prize label, now find the number
+                            // The number is in a div.bg-jps-warn-200 span.font-bold
+                            let container = node.parentElement;
+                            // Go up to find the prize container
+                            while (container && !container.querySelector('.bg-jps-warn-200')) {
+                                container = container.parentElement;
+                                if (!container || container === document.body) break;
+                            }
 
-                // Look for today's date pattern in the page
-                if (!bodyText.includes(todayStr)) {
-                    console.log('Chance results not found for today');
+                            if (container) {
+                                // Find the bold span inside bg-jps-warn-200 (the main number, not the series)
+                                const numberDivs = container.querySelectorAll('.bg-jps-warn-200');
+                                for (const div of numberDivs) {
+                                    const boldSpan = div.querySelector('span.font-bold');
+                                    if (boldSpan && /^\d{2}$/.test(boldSpan.textContent.trim())) {
+                                        return boldSpan.textContent.trim();
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
                     return null;
+                };
+
+                const first = findPrizeNumber('1er');
+                const second = findPrizeNumber('2do');
+                const third = findPrizeNumber('3er');
+
+                if (first && second && third) {
+                    console.log('Found Chance:', first, second, third);
+                    return { first, second, third };
                 }
 
-                // Extract the three prize numbers (1er, 2do, 3er lugar)
-                const primerMatch = bodyText.match(/1er[^\d]*(\d{2})/);
-                const segundoMatch = bodyText.match(/2do[^\d]*(\d{2})/);
-                const tercerMatch = bodyText.match(/3er[^\d]*(\d{2})/);
-
-                if (primerMatch && segundoMatch && tercerMatch) {
-                    console.log('Found Chance:', primerMatch[1], segundoMatch[1], tercerMatch[1]);
-                    return {
-                        first: primerMatch[1],
-                        second: segundoMatch[1],
-                        third: tercerMatch[1]
-                    };
-                }
-
+                console.log('Chance numbers not found');
                 return null;
-            }, todayStr);
+            });
 
             await chancePage.close();
             console.log('Chance:', chanceResult);
