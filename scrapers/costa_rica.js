@@ -1,4 +1,4 @@
-ï»¿import { chromium } from 'playwright-extra';
+import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { enableAdBlocker } from '../utils/resource-blocker.js';
 import { setRandomUserAgent } from '../utils/user-agent.js';
@@ -7,7 +7,7 @@ import { setupAdvancedInterception } from '../utils/request-interceptor.js';
 chromium.use(StealthPlugin());
 
 export async function scrapeCostaRica(targetDate = null) {
-    console.log('Starting Costa Rica JPS scraper (FINAL - with LoterÃ­a Nacional fix)...');
+    console.log('Starting Costa Rica JPS scraper (FINAL - with Lotería Nacional fix)...');
     const browser = await chromium.launch({
         headless: true,
         args: [
@@ -54,7 +54,7 @@ export async function scrapeCostaRica(targetDate = null) {
             const html = document.documentElement.innerHTML;
 
             // Search for specific timestamps
-            // MediodÃ­a: 2026-01-11T12:55:00
+            // Mediodía: 2026-01-11T12:55:00
             const mediodiaPattern = '\\"fecha\\":\\"' + todayStr + 'T12:55:00\\"';
             const mediodiaIndex = html.indexOf(mediodiaPattern);
             if (mediodiaIndex !== -1) {
@@ -100,7 +100,7 @@ export async function scrapeCostaRica(targetDate = null) {
             const html = document.documentElement.innerHTML;
 
             // Search for specific timestamps
-            // MediodÃ­a: 2026-01-11T12:55:00
+            // Mediodía: 2026-01-11T12:55:00
             const mediodiaPattern = '\\"fecha\\":\\"' + todayStr + 'T12:55:00\\"';
             const mediodiaIndex = html.indexOf(mediodiaPattern);
             if (mediodiaIndex !== -1) {
@@ -153,12 +153,12 @@ export async function scrapeCostaRica(targetDate = null) {
 
         console.log('Monazos:', monazos);
 
-        // If Sunday, scrape LoterÃ­a Nacional for 8:30 PM draw
+        // If Sunday, scrape Lotería Nacional for 8:30 PM draw
         let loteriaNacional = null;
         if (isSunday) {
-            console.log('Sunday detected - fetching LoterÃ­a Nacional for 8:30 PM draw...');
+            console.log('Sunday detected - fetching Lotería Nacional for 8:30 PM draw...');
 
-            // Create NEW page WITHOUT adblocker (adblocker breaks LoterÃ­a Nacional)
+            // Create NEW page WITHOUT adblocker (adblocker breaks Lotería Nacional)
             const lotPage = await browser.newPage();
             await setRandomUserAgent(lotPage);
             // NO ADBLOCKER for this page!
@@ -180,7 +180,7 @@ export async function scrapeCostaRica(targetDate = null) {
                 const tercerMatch = bodyText.match(/3er[\s\S]{0,50}?(\d{2})/);
 
                 if (primerMatch && segundoMatch && tercerMatch) {
-                    console.log('Found LoterÃ­a Nacional:', primerMatch[1], segundoMatch[1], tercerMatch[1]);
+                    console.log('Found Lotería Nacional:', primerMatch[1], segundoMatch[1], tercerMatch[1]);
                     return {
                         first: primerMatch[1],
                         second: segundoMatch[1],
@@ -193,7 +193,7 @@ export async function scrapeCostaRica(targetDate = null) {
 
             await lotPage.close();
 
-            console.log('LoterÃ­a Nacional:', loteriaNacional);
+            console.log('Lotería Nacional:', loteriaNacional);
         }
 
         // Scrape Chance on Tuesdays and Fridays
@@ -213,48 +213,49 @@ export async function scrapeCostaRica(targetDate = null) {
             await chancePage.waitForTimeout(30000);
 
             chanceResult = await chancePage.evaluate(() => {
-                // Find all prize containers by looking for "1er", "2do", "3er" text
-                const findPrizeNumber = (prizeText) => {
-                    // Find the element containing the prize text (e.g., "1er")
-                    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-                    let node;
-                    while (node = walker.nextNode()) {
-                        if (node.textContent.includes(prizeText)) {
-                            // Found the prize label, now find the number
-                            // The number is in a div.bg-jps-warn-200 span.font-bold
-                            let container = node.parentElement;
-                            // Go up to find the prize container
-                            while (container && !container.querySelector('.bg-jps-warn-200')) {
-                                container = container.parentElement;
-                                if (!container || container === document.body) break;
+                // Simple text-based extraction (WORKING VERSION)
+                const bodyText = document.body.innerText;
+                const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l);
+                
+                const prizes = { first: null, second: null, third: null };
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    
+                    if (line.includes('1er') && !prizes.first) {
+                        for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+                            if (/^\d{2}$/.test(lines[j])) {
+                                prizes.first = lines[j];
+                                break;
                             }
-
-                            if (container) {
-                                // Find the bold span inside bg-jps-warn-200 (the main number, not the series)
-                                const numberDivs = container.querySelectorAll('.bg-jps-warn-200');
-                                for (const div of numberDivs) {
-                                    const boldSpan = div.querySelector('span.font-bold');
-                                    if (boldSpan && /^\d{2}$/.test(boldSpan.textContent.trim())) {
-                                        return boldSpan.textContent.trim();
-                                    }
-                                }
-                            }
-                            break;
                         }
                     }
-                    return null;
-                };
-
-                const first = findPrizeNumber('1er');
-                const second = findPrizeNumber('2do');
-                const third = findPrizeNumber('3er');
-
-                if (first && second && third) {
-                    console.log('Found Chance:', first, second, third);
-                    return { first, second, third };
+                    
+                    if (line.includes('2do') && !prizes.second) {
+                        for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+                            if (/^\d{2}$/.test(lines[j]) && lines[j] !== prizes.first) {
+                                prizes.second = lines[j];
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (line.includes('3er') && !prizes.third) {
+                        for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+                            if (/^\d{2}$/.test(lines[j]) && lines[j] !== prizes.first && lines[j] !== prizes.second) {
+                                prizes.third = lines[j];
+                                break;
+                            }
+                        }
+                    }
                 }
-
-                console.log('Chance numbers not found');
+                
+                if (prizes.first && prizes.second && prizes.third) {
+                    console.log('Found Chance:', prizes.first, prizes.second, prizes.third);
+                    return prizes;
+                }
+                
+                console.log('Chance numbers not found. Prizes found:', prizes);
                 return null;
             });
 
@@ -287,7 +288,7 @@ export async function scrapeCostaRica(targetDate = null) {
             });
         }
 
-        // For 8:30 PM: use LoterÃ­a Nacional on Sundays, Chance on Tue/Fri, regular otherwise
+        // For 8:30 PM: use Lotería Nacional on Sundays, Chance on Tue/Fri, regular otherwise
         if (isSunday && loteriaNacional) {
             allResults.push({
                 time: '8:30 PM',
