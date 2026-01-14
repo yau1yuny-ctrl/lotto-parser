@@ -213,49 +213,56 @@ export async function scrapeCostaRica(targetDate = null) {
             await chancePage.waitForTimeout(30000);
 
             chanceResult = await chancePage.evaluate(() => {
-                // Find all prize containers by looking for "1er", "2do", "3er" text
-                const findPrizeNumber = (prizeText) => {
-                    // Find the element containing the prize text (e.g., "1er")
-                    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-                    let node;
-                    while (node = walker.nextNode()) {
-                        if (node.textContent.includes(prizeText)) {
-                            // Found the prize label, now find the number
-                            // The number is in a div.bg-jps-warn-200 span.font-bold
-                            let container = node.parentElement;
-                            // Go up to find the prize container
-                            while (container && !container.querySelector('.bg-jps-warn-200')) {
-                                container = container.parentElement;
-                                if (!container || container === document.body) break;
-                            }
+                // Replace this section in scrapers/costa_rica.js (lines 216-258):
+                chanceResult = await chancePage.evaluate(() => {
+                    // Simple text-based extraction (WORKING VERSION)
+                    const bodyText = document.body.innerText;
+                    const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l);
 
-                            if (container) {
-                                // Find the bold span inside bg-jps-warn-200 (the main number, not the series)
-                                const numberDivs = container.querySelectorAll('.bg-jps-warn-200');
-                                for (const div of numberDivs) {
-                                    const boldSpan = div.querySelector('span.font-bold');
-                                    if (boldSpan && /^\d{2}$/.test(boldSpan.textContent.trim())) {
-                                        return boldSpan.textContent.trim();
-                                    }
+                    const prizes = { first: null, second: null, third: null };
+
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i];
+
+                        if (line.includes('1er') && !prizes.first) {
+                            for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+                                if (/^\d{2}$/.test(lines[j])) {
+                                    prizes.first = lines[j];
+                                    console.log('Found 1er:', lines[j]);
+                                    break;
                                 }
                             }
-                            break;
+                        }
+
+                        if (line.includes('2do') && !prizes.second) {
+                            for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+                                if (/^\d{2}$/.test(lines[j]) && lines[j] !== prizes.first) {
+                                    prizes.second = lines[j];
+                                    console.log('Found 2do:', lines[j]);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (line.includes('3er') && !prizes.third) {
+                            for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+                                if (/^\d{2}$/.test(lines[j]) && lines[j] !== prizes.first && lines[j] !== prizes.second) {
+                                    prizes.third = lines[j];
+                                    console.log('Found 3er:', lines[j]);
+                                    break;
+                                }
+                            }
                         }
                     }
+
+                    if (prizes.first && prizes.second && prizes.third) {
+                        console.log('Found Chance:', prizes.first, prizes.second, prizes.third);
+                        return prizes;
+                    }
+
+                    console.log('Chance numbers not found. Prizes found:', prizes);
                     return null;
-                };
-
-                const first = findPrizeNumber('1er');
-                const second = findPrizeNumber('2do');
-                const third = findPrizeNumber('3er');
-
-                if (first && second && third) {
-                    console.log('Found Chance:', first, second, third);
-                    return { first, second, third };
-                }
-
-                console.log('Chance numbers not found');
-                return null;
+                });
             });
 
             await chancePage.close();
