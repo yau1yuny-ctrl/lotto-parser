@@ -58,9 +58,7 @@ async function saveToSupabase(country, drawName, time, numbers, date) {
                 draw_date: date,
                 data: [{ time: time, numbers: numbers }],
                 scraped_at: new Date().toISOString()
-            }], {
-                onConflict: 'country,draw_name,draw_date'  // Unique constraint
-            });
+            }]);
 
         if (error) {
             console.error(`❌ Supabase error:`, error);
