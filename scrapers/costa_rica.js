@@ -31,10 +31,12 @@ export async function scrapeCostaRica(targetDate = null) {
             ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
             : DateTime.now().setZone('America/Panama');
         const isSunday = dateToUse.weekday === 7;
+        const isTuesdayOrFriday = dateToUse.weekday === 2 || dateToUse.weekday === 5; // Tuesday = 2, Friday = 5
         const todayStr = dateToUse.toFormat('yyyy-MM-dd');
 
         console.log('Looking for results from:', todayStr);
         console.log('Is Sunday:', isSunday);
+        console.log('Is Tuesday or Friday (Chance):', isTuesdayOrFriday);
 
         const allResults = [];
 
@@ -194,6 +196,52 @@ export async function scrapeCostaRica(targetDate = null) {
             console.log('Lotería Nacional:', loteriaNacional);
         }
 
+        // Scrape Chance on Tuesdays and Fridays
+        let chanceResult = null;
+        if (isTuesdayOrFriday) {
+            console.log('Fetching Chance (Tuesday/Friday)...');
+            const chancePage = await browser.newPage();
+            await setRandomUserAgent(chancePage);
+            await enableAdBlocker(chancePage);
+            await setupAdvancedInterception(chancePage);
+
+            await chancePage.goto('https://www.jps.go.cr/resultados/chances', {
+                waitUntil: 'networkidle',
+                timeout: 120000
+            });
+
+            await chancePage.waitForTimeout(10000);
+
+            chanceResult = await chancePage.evaluate((todayStr) => {
+                const bodyText = document.body.innerText;
+
+                // Look for today's date pattern in the page
+                if (!bodyText.includes(todayStr)) {
+                    console.log('Chance results not found for today');
+                    return null;
+                }
+
+                // Extract the three prize numbers (1er, 2do, 3er lugar)
+                const primerMatch = bodyText.match(/1er[^\d]*(\d{2})/);
+                const segundoMatch = bodyText.match(/2do[^\d]*(\d{2})/);
+                const tercerMatch = bodyText.match(/3er[^\d]*(\d{2})/);
+
+                if (primerMatch && segundoMatch && tercerMatch) {
+                    console.log('Found Chance:', primerMatch[1], segundoMatch[1], tercerMatch[1]);
+                    return {
+                        first: primerMatch[1],
+                        second: segundoMatch[1],
+                        third: tercerMatch[1]
+                    };
+                }
+
+                return null;
+            }, todayStr);
+
+            await chancePage.close();
+            console.log('Chance:', chanceResult);
+        }
+
         await browser.close();
 
         // Combine results
@@ -219,7 +267,7 @@ export async function scrapeCostaRica(targetDate = null) {
             });
         }
 
-        // For 8:30 PM: use Lotería Nacional on Sundays
+        // For 8:30 PM: use Lotería Nacional on Sundays, Chance on Tue/Fri, regular otherwise
         if (isSunday && loteriaNacional) {
             allResults.push({
                 time: '8:30 PM',
@@ -229,7 +277,16 @@ export async function scrapeCostaRica(targetDate = null) {
                     loteriaNacional.third    // 3er lugar
                 ]
             });
-        } else if (!isSunday && nuevosTiempos.noche && monazos.noche) {
+        } else if (isTuesdayOrFriday && chanceResult) {
+            allResults.push({
+                time: '8:30 PM',
+                prizes: [
+                    chanceResult.first,   // 1er lugar
+                    chanceResult.second,  // 2do lugar
+                    chanceResult.third    // 3er lugar
+                ]
+            });
+        } else if (!isSunday && !isTuesdayOrFriday && nuevosTiempos.noche && monazos.noche) {
             allResults.push({
                 time: '8:30 PM',
                 prizes: [
