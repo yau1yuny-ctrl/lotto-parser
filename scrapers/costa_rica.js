@@ -203,7 +203,7 @@ export async function scrapeCostaRica(targetDate = null) {
             const chancePage = await browser.newPage();
             await setRandomUserAgent(chancePage);
             // await enableAdBlocker(chancePage); // DISABLED - blocks Chance content
-            await setupAdvancedInterception(chancePage);
+            // await setupAdvancedInterception(chancePage); // TESTING - may block content
 
             await chancePage.goto('https://www.jps.go.cr/resultados/chances', {
                 waitUntil: 'networkidle',
