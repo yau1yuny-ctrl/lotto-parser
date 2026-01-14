@@ -210,7 +210,7 @@ export async function scrapeCostaRica(targetDate = null) {
                 timeout: 120000
             });
 
-            await chancePage.waitForTimeout(10000);
+            await chancePage.waitForTimeout(30000);
 
             chanceResult = await chancePage.evaluate(() => {
                 // Find all prize containers by looking for "1er", "2do", "3er" text
