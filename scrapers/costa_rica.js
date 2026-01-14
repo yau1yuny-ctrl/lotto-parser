@@ -1,4 +1,4 @@
-ï»¿import { chromium } from 'playwright-extra';
+import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { enableAdBlocker } from '../utils/resource-blocker.js';
 import { setRandomUserAgent } from '../utils/user-agent.js';
@@ -7,7 +7,7 @@ import { setupAdvancedInterception } from '../utils/request-interceptor.js';
 chromium.use(StealthPlugin());
 
 export async function scrapeCostaRica(targetDate = null) {
-    console.log('Starting Costa Rica JPS scraper (FINAL - with LoterÃ­a Nacional fix)...');
+    console.log('Starting Costa Rica JPS scraper (FINAL - with Lotería Nacional fix)...');
     const browser = await chromium.launch({
         headless: true,
         args: [
@@ -54,7 +54,7 @@ export async function scrapeCostaRica(targetDate = null) {
             const html = document.documentElement.innerHTML;
 
             // Search for specific timestamps
-            // MediodÃ­a: 2026-01-11T12:55:00
+            // Mediodía: 2026-01-11T12:55:00
             const mediodiaPattern = '\\"fecha\\":\\"' + todayStr + 'T12:55:00\\"';
             const mediodiaIndex = html.indexOf(mediodiaPattern);
             if (mediodiaIndex !== -1) {
@@ -100,7 +100,7 @@ export async function scrapeCostaRica(targetDate = null) {
             const html = document.documentElement.innerHTML;
 
             // Search for specific timestamps
-            // MediodÃ­a: 2026-01-11T12:55:00
+            // Mediodía: 2026-01-11T12:55:00
             const mediodiaPattern = '\\"fecha\\":\\"' + todayStr + 'T12:55:00\\"';
             const mediodiaIndex = html.indexOf(mediodiaPattern);
             if (mediodiaIndex !== -1) {
@@ -153,12 +153,12 @@ export async function scrapeCostaRica(targetDate = null) {
 
         console.log('Monazos:', monazos);
 
-        // If Sunday, scrape LoterÃ­a Nacional for 8:30 PM draw
+        // If Sunday, scrape Lotería Nacional for 8:30 PM draw
         let loteriaNacional = null;
         if (isSunday) {
-            console.log('Sunday detected - fetching LoterÃ­a Nacional for 8:30 PM draw...');
+            console.log('Sunday detected - fetching Lotería Nacional for 8:30 PM draw...');
 
-            // Create NEW page WITHOUT adblocker (adblocker breaks LoterÃ­a Nacional)
+            // Create NEW page WITHOUT adblocker (adblocker breaks Lotería Nacional)
             const lotPage = await browser.newPage();
             await setRandomUserAgent(lotPage);
             // NO ADBLOCKER for this page!
@@ -180,7 +180,7 @@ export async function scrapeCostaRica(targetDate = null) {
                 const tercerMatch = bodyText.match(/3er[\s\S]{0,50}?(\d{2})/);
 
                 if (primerMatch && segundoMatch && tercerMatch) {
-                    console.log('Found LoterÃ­a Nacional:', primerMatch[1], segundoMatch[1], tercerMatch[1]);
+                    console.log('Found Lotería Nacional:', primerMatch[1], segundoMatch[1], tercerMatch[1]);
                     return {
                         first: primerMatch[1],
                         second: segundoMatch[1],
@@ -193,7 +193,7 @@ export async function scrapeCostaRica(targetDate = null) {
 
             await lotPage.close();
 
-            console.log('LoterÃ­a Nacional:', loteriaNacional);
+            console.log('Lotería Nacional:', loteriaNacional);
         }
 
         // Scrape Chance on Tuesdays and Fridays
@@ -213,8 +213,8 @@ export async function scrapeCostaRica(targetDate = null) {
             await chancePage.waitForTimeout(30000);
 
             chanceResult = await chancePage.evaluate(() => {
-                // Replace this section in scrapers/costa_rica.js (lines 216-258):
-                chanceResult = await chancePage.evaluate(() => {
+                // Simple text-based extraction (WORKING VERSION)
+                const bodyText = document.body.innerText;
                     // Simple text-based extraction (WORKING VERSION)
                     const bodyText = document.body.innerText;
                     const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l);
@@ -294,7 +294,7 @@ export async function scrapeCostaRica(targetDate = null) {
             });
         }
 
-        // For 8:30 PM: use LoterÃ­a Nacional on Sundays, Chance on Tue/Fri, regular otherwise
+        // For 8:30 PM: use Lotería Nacional on Sundays, Chance on Tue/Fri, regular otherwise
         if (isSunday && loteriaNacional) {
             allResults.push({
                 time: '8:30 PM',
