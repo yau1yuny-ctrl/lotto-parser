@@ -55,7 +55,7 @@ async function saveToSupabase(country, drawName, time, numbers, date) {
             .upsert([{
                 country: country,
                 draw_name: drawName,
-                date: [{ time: time, numbers: numbers }],  // jsonb field
+                data: [{ time: time, numbers: numbers }],  // jsonb field
                 draw_date: date,  // date field
                 scraped_at: new Date().toISOString()
             }]);
