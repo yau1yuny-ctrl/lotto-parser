@@ -151,9 +151,9 @@ async function scrapeAfternoonDraws() {
         15
     );
 
-    // 7:00 PM - Dominican Republic + Nicaragua (PARALLEL)
-    console.log('⏰ 7:00 PM - Dominican Republic + Nicaragua (parallel)');
-    await waitUntilDrawTime('7:00 PM');
+    // 6:00 PM - Dominican Republic + Nicaragua (PARALLEL)
+    console.log('⏰ 6:00 PM - Dominican Republic (parallel)');
+    await waitUntilDrawTime('6:00 PM');
     await Promise.all([
         scrapeWithRetry(
             () => scrapeDominicanRepublic(),
@@ -162,7 +162,7 @@ async function scrapeAfternoonDraws() {
             {
                 country: 'Dominican Republic',
                 drawName: 'La Primera Noche',
-                time: '7:00 PM',
+                time: '6:00 PM',
                 date: today,
                 getNumbers: (r) => r.numbers
             },
