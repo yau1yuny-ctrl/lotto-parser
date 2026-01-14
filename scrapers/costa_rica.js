@@ -212,9 +212,20 @@ export async function scrapeCostaRica(targetDate = null) {
 
             await chancePage.waitForTimeout(30000);
 
-            chanceResult = await chancePage.evaluate(() => {
+            chanceResult = await chancePage.evaluate((todayStr) => {
                 const bodyText = document.body.innerText;
                 const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l);
+
+                // Validate date - look for today's date in the page
+                const hasToday = bodyText.includes(todayStr) ||
+                    bodyText.includes(todayStr.replace(/-/g, '/')) ||
+                    bodyText.includes('13 de Enero') ||
+                    bodyText.includes('13 de enero');
+
+                if (!hasToday) {
+                    console.log('Chance results not found for today:', todayStr);
+                    return null;
+                }
 
                 const prizes = { first: null, second: null, third: null };
 
@@ -259,7 +270,7 @@ export async function scrapeCostaRica(targetDate = null) {
 
                 console.log('Chance numbers not found. Prizes found:', prizes);
                 return null;
-            });
+            }, todayStr);
 
             await chancePage.close();
             console.log('Chance:', chanceResult);
