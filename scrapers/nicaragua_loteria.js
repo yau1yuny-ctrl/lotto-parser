@@ -24,11 +24,15 @@ export async function scrapeLoteriaDeNicaragua(targetDate = null) {
             ? DateTime.fromISO(targetDate, { zone: 'America/Panama' })
             : DateTime.now().setZone('America/Panama');
 
-        const results = await page.evaluate(() => {
+
+        // Pass expected day for validation
+        const expectedDay = dateToUse.day;
+        const results = await page.evaluate((expectedDay) => {
             const allDraws = [];
 
             // Find all game blocks
             const blocks = document.querySelectorAll('.game-block');
+
 
             // Nicaragua times we're looking for (in Nicaragua time UTC-6)
             const nicaraguaTimes = ['12:00 PM', '3:00 PM', '6:00 PM', '9:00 PM'];
@@ -36,6 +40,8 @@ export async function scrapeLoteriaDeNicaragua(targetDate = null) {
             nicaraguaTimes.forEach(nicaraguaTime => {
                 let diariaNumber = null;
                 let premia2Numbers = [];
+                let diariaDateValid = false;
+                let premia2DateValid = false;
 
                 // Find Diaria block for this time
                 blocks.forEach(block => {
@@ -44,36 +50,51 @@ export async function scrapeLoteriaDeNicaragua(targetDate = null) {
 
                     const titleText = title.innerText.trim();
 
+                    // Check the date label for this block
+                    const dateLabel = block.querySelector('.game-date');
+                    const dateLabelText = dateLabel?.innerText.trim() || '';
+                    const dateMatch = dateLabelText.match(/(\d{1,2})-(\d{2})/);
+                    const blockDay = dateMatch ? parseInt(dateMatch[1]) : null;
+
                     // Diaria - get the 2-digit number (primer premio)
                     if (titleText.includes('Diaria') && titleText.includes(nicaraguaTime)) {
-                        const scores = Array.from(block.querySelectorAll('.game-scores .score'));
-                        // The main number is usually the one without special classes
-                        for (let i = 0; i < scores.length; i++) {
-                            const score = scores[i];
-                            const text = score.innerText.trim();
-                            // Look for 2-digit number
-                            if (/^\d{2}$/.test(text)) {
-                                diariaNumber = text;
-                                break;
+                        // Only accept if date matches expected day
+                        if (blockDay === expectedDay) {
+                            diariaDateValid = true;
+                            const scores = Array.from(block.querySelectorAll('.game-scores .score'));
+                            // The main number is usually the one without special classes
+                            for (let i = 0; i < scores.length; i++) {
+                                const score = scores[i];
+                                const text = score.innerText.trim();
+                                // Look for 2-digit number
+                                if (/^\d{2}$/.test(text)) {
+                                    diariaNumber = text;
+                                    break;
+                                }
                             }
                         }
                     }
 
                     // Premia 2 - get the two numbers (segundo y tercer premio)
                     if (titleText.includes('Premia 2') && titleText.includes(nicaraguaTime)) {
-                        const scores = Array.from(block.querySelectorAll('.game-scores .score'));
-                        scores.forEach(score => {
-                            const text = score.innerText.trim();
-                            // Look for 2-digit numbers
-                            if (/^\d{2}$/.test(text)) {
-                                premia2Numbers.push(text);
-                            }
-                        });
+                        // Only accept if date matches expected day
+                        if (blockDay === expectedDay) {
+                            premia2DateValid = true;
+                            const scores = Array.from(block.querySelectorAll('.game-scores .score'));
+                            scores.forEach(score => {
+                                const text = score.innerText.trim();
+                                // Look for 2-digit numbers
+                                if (/^\d{2}$/.test(text)) {
+                                    premia2Numbers.push(text);
+                                }
+                            });
+                        }
                     }
                 });
 
-                // If we have all 3 numbers, add to results
-                if (diariaNumber && premia2Numbers.length >= 2) {
+
+                // Only add results if we have all 3 numbers AND both dates are valid
+                if (diariaNumber && premia2Numbers.length >= 2 && diariaDateValid && premia2DateValid) {
                     // Convert Nicaragua time (UTC-6) to Panama time (UTC-5) by adding 1 hour
                     const timeMatch = nicaraguaTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
                     let panamaTime = '';
@@ -105,7 +126,7 @@ export async function scrapeLoteriaDeNicaragua(targetDate = null) {
             });
 
             return allDraws;
-        });
+        }, expectedDay);
 
         console.log('LoteriasDeNicaragua scraping completed:', results);
         await browser.close();

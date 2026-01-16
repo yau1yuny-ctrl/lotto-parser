@@ -59,6 +59,7 @@ export async function scrapeNuevaya(targetDate = null) {
             // Find all tables
             const tables = document.querySelectorAll('figure.wp-block-table table.has-fixed-layout');
 
+
             tables.forEach(table => {
                 const rows = table.querySelectorAll('tbody tr');
 
