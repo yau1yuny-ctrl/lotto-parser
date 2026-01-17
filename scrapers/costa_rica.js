@@ -216,14 +216,21 @@ export async function scrapeCostaRica(targetDate = null) {
                 const bodyText = document.body.innerText;
                 const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l);
 
-                // Validate date - look for today's date in the page
+                // Extract day and month from todayStr (format: YYYY-MM-DD)
+                const [year, month, day] = todayStr.split('-');
+                const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+                const monthName = monthNames[parseInt(month) - 1];
+                const dayNum = parseInt(day);
+
+                // Validate date - look for today's date in various formats
                 const hasToday = bodyText.includes(todayStr) ||
                     bodyText.includes(todayStr.replace(/-/g, '/')) ||
-                    bodyText.includes('13 de Enero') ||
-                    bodyText.includes('13 de enero');
+                    bodyText.toLowerCase().includes(`${dayNum} de ${monthName}`) ||
+                    bodyText.toLowerCase().includes(`${dayNum} de ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}`);
 
                 if (!hasToday) {
-                    console.log('Chance results not found for today:', todayStr);
+                    console.log('⚠️ Chance results not found for today:', todayStr, `(${dayNum} de ${monthName})`);
                     return null;
                 }
 
